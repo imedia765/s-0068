@@ -88,7 +88,10 @@ export function MoveCollectorMembersDialog({
     setIsLoading(true);
     const { error } = await supabase
       .from('members')
-      .update({ collector_id: selectedCollectorId })
+      .update({ 
+        collector_id: selectedCollectorId,
+        updated_at: new Date().toISOString()
+      })
       .in('id', selectedMembers);
 
     if (error) {

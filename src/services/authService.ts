@@ -34,21 +34,25 @@ export const createUserProfile = async (userId: string, email: string) => {
 
 export const createMember = async (memberData: any, collectorId: string) => {
   console.log("Creating member with data:", { memberData, collectorId });
+  
+  // Create a single member object with all required fields
+  const memberObject = {
+    collector_id: collectorId,
+    full_name: memberData.fullName,
+    email: memberData.email,
+    phone: memberData.mobile,
+    address: memberData.address,
+    town: memberData.town,
+    postcode: memberData.postCode,
+    date_of_birth: memberData.dob,
+    gender: memberData.gender,
+    marital_status: memberData.maritalStatus,
+    status: 'pending'
+  };
+
   const { data, error } = await supabase
     .from('members')
-    .insert([{
-      collector_id: collectorId,
-      full_name: memberData.fullName,
-      email: memberData.email,
-      phone: memberData.mobile,
-      address: memberData.address,
-      town: memberData.town,
-      postcode: memberData.postCode,
-      date_of_birth: memberData.dob,
-      gender: memberData.gender,
-      marital_status: memberData.maritalStatus,
-      status: 'pending'
-    }])
+    .insert(memberObject)
     .select()
     .single();
 

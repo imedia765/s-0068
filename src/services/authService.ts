@@ -36,7 +36,7 @@ export const createMember = async (memberData: any, collectorId: string) => {
   console.log("Creating member with data:", { memberData, collectorId });
   
   // Create a single member object with all required fields
-  const memberObject = {
+  const memberObject = [{
     collector_id: collectorId,
     full_name: memberData.fullName,
     email: memberData.email,
@@ -48,7 +48,7 @@ export const createMember = async (memberData: any, collectorId: string) => {
     gender: memberData.gender,
     marital_status: memberData.maritalStatus,
     status: 'pending'
-  };
+  }];
 
   const { data, error } = await supabase
     .from('members')

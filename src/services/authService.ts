@@ -26,33 +26,28 @@ export const signUpUser = async (email: string, password: string) => {
 export const createUserProfile = async (userId: string, email: string) => {
   console.log("Creating user profile for:", userId);
   
-  try {
-    const profileData: TablesInsert<'profiles'> = {
-      id: userId,
-      user_id: userId,
-      email,
-      role: 'member' as UserRole,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
-    };
+  const profileData: TablesInsert<'profiles'> = {
+    id: userId,
+    user_id: userId,
+    email,
+    role: 'member' as UserRole,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString()
+  };
 
-    const { data, error: insertError } = await supabase
-      .from('profiles')
-      .insert(profileData)
-      .select()
-      .single();
+  const { data, error } = await supabase
+    .from('profiles')
+    .insert(profileData)
+    .select()
+    .single();
 
-    if (insertError) {
-      console.error("Profile creation error:", insertError);
-      throw insertError;
-    }
-
-    console.log("Profile created successfully:", data);
-    return data;
-  } catch (error) {
+  if (error) {
     console.error("Profile creation error:", error);
     throw error;
   }
+
+  console.log("Profile created successfully:", data);
+  return data;
 };
 
 export const createMember = async (memberData: any, collectorId: string) => {

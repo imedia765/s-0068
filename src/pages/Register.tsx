@@ -36,46 +36,43 @@ export default function Register() {
       }
 
       // Step 1: Create auth user and wait for session
-      try {
-        const authData = await signUpUser(data.email, data.password);
-        if (!authData.user) {
-          throw new Error("Failed to create user account");
-        }
-
-        // Wait for session to be established
-        const { data: sessionData } = await supabase.auth.getSession();
-        if (!sessionData.session) {
-          throw new Error("Failed to establish session");
-        }
-
-        // Step 2: Create user profile
-        await createUserProfile(authData.user.id, data.email);
-
-        // Step 3: Create member record
-        const member = await createMember(data, selectedCollectorId);
-
-        // Step 4: Create registration record
-        await createRegistration(member.id);
-
-        toast({
-          title: "Registration successful",
-          description: "Your registration has been submitted and is pending approval.",
-        });
-
-        // Redirect to login page
-        navigate("/login");
-      } catch (error: any) {
-        // Handle rate limit error specifically
-        if (error.message.includes('Please wait')) {
-          toast({
-            title: "Registration paused",
-            description: error.message,
-            variant: "destructive",
-          });
-          return;
-        }
-        throw error; // Re-throw other errors to be caught by outer catch block
+      const authData = await signUpUser(data.email, data.password);
+      if (!authData.user) {
+        throw new Error("Failed to create user account");
       }
+
+      // Wait for session to be established (max 10 seconds)
+      let session = null;
+      let attempts = 0;
+      while (!session && attempts < 10) {
+        const { data: sessionData } = await supabase.auth.getSession();
+        session = sessionData.session;
+        if (!session) {
+          await new Promise(resolve => setTimeout(resolve, 1000));
+          attempts++;
+        }
+      }
+
+      if (!session) {
+        throw new Error("Failed to establish session after multiple attempts");
+      }
+
+      // Step 2: Create user profile
+      await createUserProfile(authData.user.id, data.email);
+
+      // Step 3: Create member record
+      const member = await createMember(data, selectedCollectorId);
+
+      // Step 4: Create registration record
+      await createRegistration(member.id);
+
+      toast({
+        title: "Registration successful",
+        description: "Your registration has been submitted and is pending approval.",
+      });
+
+      // Redirect to login page
+      navigate("/login");
     } catch (error) {
       console.error("Registration error:", error);
       toast({

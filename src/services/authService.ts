@@ -23,36 +23,48 @@ export const signUpUser = async (email: string, password: string) => {
 export const createUserProfile = async (userId: string, email: string) => {
   console.log("Creating user profile for:", userId);
   
-  // First check if profile already exists
-  const { data: existingProfile } = await supabase
-    .from('profiles')
-    .select()
-    .eq('id', userId)
-    .single();
+  try {
+    // First check if profile already exists
+    const { data: existingProfile, error: lookupError } = await supabase
+      .from('profiles')
+      .select()
+      .eq('id', userId)
+      .single();
 
-  if (existingProfile) {
-    console.log("Profile already exists for user:", userId);
-    return existingProfile;
-  }
+    if (lookupError && lookupError.code !== 'PGRST116') {
+      console.error("Profile lookup error:", lookupError);
+      throw lookupError;
+    }
 
-  const { data, error } = await supabase
-    .from('profiles')
-    .insert([{ 
-      id: userId, 
-      email, 
-      role: 'member',
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
-    }])
-    .select()
-    .single();
+    if (existingProfile) {
+      console.log("Profile already exists for user:", userId);
+      return existingProfile;
+    }
 
-  if (error) {
+    // Create new profile with the user's ID as the profile ID
+    const { data, error } = await supabase
+      .from('profiles')
+      .insert({
+        id: userId,
+        email,
+        role: 'member',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      })
+      .select()
+      .single();
+
+    if (error) {
+      console.error("Profile creation error:", error);
+      throw error;
+    }
+
+    console.log("Profile created successfully:", data);
+    return data;
+  } catch (error) {
     console.error("Profile creation error:", error);
     throw error;
   }
-  console.log("Profile created successfully:", data);
-  return data;
 };
 
 export const createMember = async (memberData: any, collectorId: string) => {
@@ -94,33 +106,44 @@ export const createMember = async (memberData: any, collectorId: string) => {
 export const createRegistration = async (memberId: string) => {
   console.log("Creating registration for member:", memberId);
   
-  // Check if registration already exists
-  const { data: existingRegistration } = await supabase
-    .from('registrations')
-    .select()
-    .eq('member_id', memberId)
-    .single();
+  try {
+    // Check if registration already exists
+    const { data: existingRegistration, error: lookupError } = await supabase
+      .from('registrations')
+      .select()
+      .eq('member_id', memberId)
+      .single();
 
-  if (existingRegistration) {
-    console.log("Registration already exists for member:", memberId);
-    return existingRegistration;
-  }
+    if (lookupError && lookupError.code !== 'PGRST116') {
+      console.error("Registration lookup error:", lookupError);
+      throw lookupError;
+    }
 
-  const { data, error } = await supabase
-    .from('registrations')
-    .insert([{
-      member_id: memberId,
-      status: 'pending',
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
-    }])
-    .select()
-    .single();
+    if (existingRegistration) {
+      console.log("Registration already exists for member:", memberId);
+      return existingRegistration;
+    }
 
-  if (error) {
+    const { data, error } = await supabase
+      .from('registrations')
+      .insert({
+        member_id: memberId,
+        status: 'pending',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      })
+      .select()
+      .single();
+
+    if (error) {
+      console.error("Registration creation error:", error);
+      throw error;
+    }
+
+    console.log("Registration created successfully:", data);
+    return data;
+  } catch (error) {
     console.error("Registration creation error:", error);
     throw error;
   }
-  console.log("Registration created successfully:", data);
-  return data;
 };

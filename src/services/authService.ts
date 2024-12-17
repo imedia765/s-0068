@@ -1,5 +1,8 @@
 import { supabase } from "@/integrations/supabase/client";
 import type { TablesInsert } from "@/integrations/supabase/types";
+import { Enums } from "@/integrations/supabase/types";
+
+type UserRole = Enums<"user_role">;
 
 export const signUpUser = async (email: string, password: string) => {
   console.log("Attempting to sign up user with email:", email);
@@ -43,7 +46,7 @@ export const createUserProfile = async (userId: string, email: string) => {
     const profileData = {
       id: userId,
       email,
-      role: 'member',
+      role: 'member' as UserRole,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString()
     };

@@ -27,22 +27,6 @@ export const createUserProfile = async (userId: string, email: string) => {
   console.log("Creating user profile for:", userId);
   
   try {
-    const { data: existingProfile, error: lookupError } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('user_id', userId)
-      .maybeSingle();
-
-    if (lookupError) {
-      console.error("Profile lookup error:", lookupError);
-      throw lookupError;
-    }
-
-    if (existingProfile) {
-      console.log("Profile already exists for user:", userId);
-      return existingProfile;
-    }
-
     const profileData: TablesInsert<'profiles'> = {
       id: userId,
       user_id: userId,
@@ -96,7 +80,7 @@ export const createMember = async (memberData: any, collectorId: string) => {
     .from('members')
     .insert(memberObject)
     .select()
-    .maybeSingle();
+    .single();
 
   if (error) {
     console.error("Member creation error:", error);
@@ -110,47 +94,22 @@ export const createMember = async (memberData: any, collectorId: string) => {
 export const createRegistration = async (memberId: string) => {
   console.log("Creating registration for member:", memberId);
   
-  try {
-    const { data: existingRegistration, error: lookupError } = await supabase
-      .from('registrations')
-      .select('*')
-      .eq('member_id', memberId)
-      .maybeSingle();
+  const { data, error } = await supabase
+    .from('registrations')
+    .insert({
+      member_id: memberId,
+      status: 'pending',
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    })
+    .select()
+    .single();
 
-    if (lookupError) {
-      console.error("Registration lookup error:", lookupError);
-      throw lookupError;
-    }
-
-    if (existingRegistration) {
-      console.log("Registration already exists for member:", memberId);
-      return existingRegistration;
-    }
-
-    const { data, error: insertError } = await supabase
-      .from('registrations')
-      .insert({
-        member_id: memberId,
-        status: 'pending',
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      })
-      .select()
-      .maybeSingle();
-
-    if (insertError) {
-      console.error("Registration creation error:", insertError);
-      throw insertError;
-    }
-
-    if (!data) {
-      throw new Error("Registration was not created successfully");
-    }
-
-    console.log("Registration created successfully:", data);
-    return data;
-  } catch (error) {
+  if (error) {
     console.error("Registration creation error:", error);
     throw error;
   }
+
+  console.log("Registration created successfully:", data);
+  return data;
 };

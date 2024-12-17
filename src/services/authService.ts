@@ -27,22 +27,23 @@ export const createUserProfile = async (userId: string, email: string) => {
     // First check if profile already exists
     const { data: existingProfile, error: lookupError } = await supabase
       .from('profiles')
-      .select()
-      .eq('id', userId)
-      .single();
+      .select('*')
+      .eq('id', userId);
 
-    if (lookupError && lookupError.code !== 'PGRST116') {
+    // Handle the case where no profile exists (this is expected for new users)
+    if (lookupError) {
       console.error("Profile lookup error:", lookupError);
       throw lookupError;
     }
 
-    if (existingProfile) {
+    // If profile exists, return it
+    if (existingProfile && existingProfile.length > 0) {
       console.log("Profile already exists for user:", userId);
-      return existingProfile;
+      return existingProfile[0];
     }
 
-    // Create new profile with the user's ID as the profile ID
-    const { data, error } = await supabase
+    // Create new profile
+    const { data, error: insertError } = await supabase
       .from('profiles')
       .insert({
         id: userId,
@@ -51,16 +52,19 @@ export const createUserProfile = async (userId: string, email: string) => {
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       })
-      .select()
-      .single();
+      .select('*');
 
-    if (error) {
-      console.error("Profile creation error:", error);
-      throw error;
+    if (insertError) {
+      console.error("Profile creation error:", insertError);
+      throw insertError;
     }
 
-    console.log("Profile created successfully:", data);
-    return data;
+    if (!data || data.length === 0) {
+      throw new Error("Profile was not created successfully");
+    }
+
+    console.log("Profile created successfully:", data[0]);
+    return data[0];
   } catch (error) {
     console.error("Profile creation error:", error);
     throw error;
@@ -110,21 +114,21 @@ export const createRegistration = async (memberId: string) => {
     // Check if registration already exists
     const { data: existingRegistration, error: lookupError } = await supabase
       .from('registrations')
-      .select()
-      .eq('member_id', memberId)
-      .single();
+      .select('*')
+      .eq('member_id', memberId);
 
-    if (lookupError && lookupError.code !== 'PGRST116') {
+    if (lookupError) {
       console.error("Registration lookup error:", lookupError);
       throw lookupError;
     }
 
-    if (existingRegistration) {
+    // If registration exists, return it
+    if (existingRegistration && existingRegistration.length > 0) {
       console.log("Registration already exists for member:", memberId);
-      return existingRegistration;
+      return existingRegistration[0];
     }
 
-    const { data, error } = await supabase
+    const { data, error: insertError } = await supabase
       .from('registrations')
       .insert({
         member_id: memberId,
@@ -132,16 +136,19 @@ export const createRegistration = async (memberId: string) => {
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       })
-      .select()
-      .single();
+      .select('*');
 
-    if (error) {
-      console.error("Registration creation error:", error);
-      throw error;
+    if (insertError) {
+      console.error("Registration creation error:", insertError);
+      throw insertError;
     }
 
-    console.log("Registration created successfully:", data);
-    return data;
+    if (!data || data.length === 0) {
+      throw new Error("Registration was not created successfully");
+    }
+
+    console.log("Registration created successfully:", data[0]);
+    return data[0];
   } catch (error) {
     console.error("Registration creation error:", error);
     throw error;

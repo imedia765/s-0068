@@ -1,4 +1,4 @@
-import { useNavigate, useLocation } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -11,37 +11,14 @@ import { MembershipSection } from "@/components/registration/MembershipSection";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { InfoIcon } from "lucide-react";
 import { useState } from "react";
-import { RegistrationStateHandler } from "@/components/registration/RegistrationStateHandler";
-import { supabase } from "@/integrations/supabase/client";
-import { 
-  createAuthUser, 
-  createOrUpdateMember,
-  createOrUpdateProfile, 
-  createOrUpdateRegistration 
-} from "@/services/registrationService";
+import { signUpUser, createUserProfile, createMember, createRegistration } from "@/services/authService";
 
 export default function Register() {
   const navigate = useNavigate();
-  const location = useLocation();
   const { toast } = useToast();
   const { register, handleSubmit, setValue, watch } = useForm();
   const [selectedCollectorId, setSelectedCollectorId] = useState<string>("");
   const [isSubmitting, setIsSubmitting] = useState(false);
-
-  const state = location.state as { 
-    memberId?: string;
-    prefilledData?: {
-      fullName: string;
-      address: string;
-      town: string;
-      postCode: string;
-      mobile: string;
-      dob: string;
-      gender: string;
-      maritalStatus: string;
-      email: string;
-    };
-  };
 
   const onSubmit = async (data: any) => {
     try {
@@ -57,45 +34,28 @@ export default function Register() {
         return;
       }
 
-      // Create auth user if this is a new registration
-      if (!state?.memberId) {
-        const authData = await createAuthUser(data.email, data.password);
-        if (!authData.user) {
-          throw new Error("Failed to create user account");
-        }
-
-        // Create or update member record
-        const member = await createOrUpdateMember(state?.memberId, data, selectedCollectorId);
-        
-        // Create or update profile
-        await createOrUpdateProfile(authData.user.id, data.email);
-        
-        // Create or update registration
-        await createOrUpdateRegistration(member.id, !state?.memberId);
-
-        toast({
-          title: "Registration successful",
-          description: "Your registration has been submitted and is pending approval.",
-        });
-      } else {
-        // Update existing member
-        const member = await createOrUpdateMember(state.memberId, data, selectedCollectorId);
-        
-        // Update profile and registration for existing member
-        const { data: { user } } = await supabase.auth.getUser();
-        if (user) {
-          await createOrUpdateProfile(user.id, data.email);
-          await createOrUpdateRegistration(member.id, false);
-        }
-
-        toast({
-          title: "Profile updated",
-          description: "Your profile has been updated successfully.",
-        });
+      // Step 1: Create auth user
+      const authData = await signUpUser(data.email, data.password);
+      if (!authData.user) {
+        throw new Error("Failed to create user account");
       }
-      
-      // Redirect to admin page
-      navigate("/admin");
+
+      // Step 2: Create user profile
+      await createUserProfile(authData.user.id, data.email);
+
+      // Step 3: Create member record
+      const member = await createMember(data, selectedCollectorId);
+
+      // Step 4: Create registration record
+      await createRegistration(member.id);
+
+      toast({
+        title: "Registration successful",
+        description: "Your registration has been submitted and is pending approval.",
+      });
+
+      // Redirect to login page
+      navigate("/login");
     } catch (error) {
       console.error("Registration error:", error);
       toast({
@@ -110,11 +70,10 @@ export default function Register() {
 
   return (
     <div className="container py-8 max-w-4xl mx-auto">
-      <RegistrationStateHandler />
       <Card className="shadow-lg">
         <CardHeader className="bg-primary/5 border-b">
           <CardTitle className="text-2xl text-center text-primary">
-            {state?.memberId ? "Update Profile" : "PWA Burton On Trent Registration Form"}
+            PWA Burton On Trent Registration Form
           </CardTitle>
         </CardHeader>
         <CardContent className="p-6">
@@ -141,7 +100,7 @@ export default function Register() {
                 className="w-full bg-primary hover:bg-primary/90"
                 disabled={isSubmitting}
               >
-                {isSubmitting ? "Submitting..." : (state?.memberId ? "Update Profile" : "Submit Registration")}
+                {isSubmitting ? "Submitting..." : "Submit Registration"}
               </Button>
             </div>
           </form>

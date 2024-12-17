@@ -6,21 +6,32 @@ type UserRole = Enums<"user_role">;
 
 export const signUpUser = async (email: string, password: string) => {
   console.log("Attempting to sign up user with email:", email);
-  const { data, error } = await supabase.auth.signUp({
-    email,
-    password,
-    options: {
-      emailRedirectTo: `${window.location.origin}/admin`,
-    },
-  });
+  try {
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        emailRedirectTo: `${window.location.origin}/admin`,
+      },
+    });
 
-  if (error) {
+    if (error) {
+      // Check for rate limit error
+      if (error.message.includes('rate_limit') || error.status === 429) {
+        const waitTimeMatch = error.message.match(/after (\d+) seconds/);
+        const waitTime = waitTimeMatch ? parseInt(waitTimeMatch[1]) : 60;
+        throw new Error(`Please wait ${waitTime} seconds before trying again.`);
+      }
+      console.error("Sign up error:", error);
+      throw error;
+    }
+
+    console.log("Sign up successful:", data);
+    return data;
+  } catch (error) {
     console.error("Sign up error:", error);
     throw error;
   }
-
-  console.log("Sign up successful:", data);
-  return data;
 };
 
 export const createUserProfile = async (userId: string, email: string) => {

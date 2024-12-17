@@ -16,13 +16,31 @@ export const signUpUser = async (email: string, password: string) => {
     });
 
     if (error) {
-      // Check for rate limit error in the error message
-      if (error.message.includes('over_email_send_rate_limit')) {
-        const waitTimeMatch = error.message.match(/after (\d+) seconds/);
+      console.error("Sign up error:", error);
+      
+      // Parse the error body if it's a string
+      let errorBody;
+      try {
+        errorBody = typeof error.message === 'string' ? JSON.parse(error.message) : null;
+      } catch {
+        errorBody = null;
+      }
+
+      // Check for rate limit error in different possible locations
+      const isRateLimit = 
+        error.message?.includes('over_email_send_rate_limit') ||
+        errorBody?.code === 'over_email_send_rate_limit' ||
+        error.status === 429;
+
+      if (isRateLimit) {
+        // Try to extract wait time from various possible locations
+        let waitTimeMatch = 
+          error.message?.match(/after (\d+) seconds/) ||
+          errorBody?.message?.match(/after (\d+) seconds/);
+        
         const waitTime = waitTimeMatch ? parseInt(waitTimeMatch[1]) : 60;
         throw new Error(`Please wait ${waitTime} seconds before trying again.`);
       }
-      console.error("Sign up error:", error);
       throw error;
     }
 

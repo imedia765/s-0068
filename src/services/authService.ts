@@ -30,7 +30,7 @@ export const createUserProfile = async (userId: string, email: string) => {
     const { data: existingProfile, error: lookupError } = await supabase
       .from('profiles')
       .select('*')
-      .eq('id', userId)
+      .eq('user_id', userId)
       .maybeSingle();
 
     if (lookupError) {
@@ -43,8 +43,9 @@ export const createUserProfile = async (userId: string, email: string) => {
       return existingProfile;
     }
 
-    const profileData = {
+    const profileData: TablesInsert<'profiles'> = {
       id: userId,
+      user_id: userId,
       email,
       role: 'member' as UserRole,
       created_at: new Date().toISOString(),
@@ -55,15 +56,11 @@ export const createUserProfile = async (userId: string, email: string) => {
       .from('profiles')
       .insert(profileData)
       .select()
-      .maybeSingle();
+      .single();
 
     if (insertError) {
       console.error("Profile creation error:", insertError);
       throw insertError;
-    }
-
-    if (!data) {
-      throw new Error("Profile was not created successfully");
     }
 
     console.log("Profile created successfully:", data);

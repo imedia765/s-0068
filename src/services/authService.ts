@@ -16,8 +16,8 @@ export const signUpUser = async (email: string, password: string) => {
     });
 
     if (error) {
-      // Check for rate limit error
-      if (error.message.includes('rate_limit') || error.status === 429) {
+      // Check for rate limit error in the error message
+      if (error.message.includes('over_email_send_rate_limit')) {
         const waitTimeMatch = error.message.match(/after (\d+) seconds/);
         const waitTime = waitTimeMatch ? parseInt(waitTimeMatch[1]) : 60;
         throw new Error(`Please wait ${waitTime} seconds before trying again.`);

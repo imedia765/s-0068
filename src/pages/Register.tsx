@@ -12,6 +12,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { InfoIcon } from "lucide-react";
 import { useState } from "react";
 import { signUpUser, createUserProfile, createMember, createRegistration } from "@/services/authService";
+import { supabase } from "@/integrations/supabase/client";
 
 export default function Register() {
   const navigate = useNavigate();
@@ -34,10 +35,16 @@ export default function Register() {
         return;
       }
 
-      // Step 1: Create auth user
+      // Step 1: Create auth user and wait for session
       const authData = await signUpUser(data.email, data.password);
       if (!authData.user) {
         throw new Error("Failed to create user account");
+      }
+
+      // Wait for session to be established
+      const { data: sessionData } = await supabase.auth.getSession();
+      if (!sessionData.session) {
+        throw new Error("Failed to establish session");
       }
 
       // Step 2: Create user profile

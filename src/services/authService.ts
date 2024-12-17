@@ -26,6 +26,14 @@ export const signUpUser = async (email: string, password: string) => {
 export const createUserProfile = async (userId: string, email: string) => {
   console.log("Creating user profile for:", userId);
   
+  // First, get the current session to ensure we're authenticated
+  const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+  
+  if (sessionError || !session) {
+    console.error("Session error:", sessionError);
+    throw new Error("No valid session found");
+  }
+
   const profileData: TablesInsert<'profiles'> = {
     id: userId,
     user_id: userId,

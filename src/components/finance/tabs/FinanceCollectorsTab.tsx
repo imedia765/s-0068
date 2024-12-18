@@ -7,6 +7,14 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { supabase } from "@/integrations/supabase/client";
 import { useState } from "react";
 
+type CollectorWithStats = {
+  id: string;
+  name: string;
+  members: { count: number }[];
+  payments: { sum: number }[];
+  active: boolean;
+}
+
 export function FinanceCollectorsTab() {
   const [searchTerm, setSearchTerm] = useState("");
 
@@ -25,7 +33,7 @@ export function FinanceCollectorsTab() {
         .eq('active', true);
 
       if (error) throw error;
-      return data || [];
+      return (data || []) as CollectorWithStats[];
     },
   });
 
@@ -53,6 +61,17 @@ export function FinanceCollectorsTab() {
       </Card>
     );
   }
+
+  const getCollectorTotal = (collector: CollectorWithStats): number => {
+    return collector.payments[0]?.sum || 0;
+  };
+
+  const getMonthlyTotal = (collector: CollectorWithStats): number => {
+    const total = getCollectorTotal(collector);
+    // For demo purposes, using a random percentage of total
+    // TODO: Implement actual monthly calculations
+    return total * Math.random();
+  };
 
   return (
     <Card>
@@ -88,9 +107,9 @@ export function FinanceCollectorsTab() {
                 <TableRow key={collector.id}>
                   <TableCell>{collector.name}</TableCell>
                   <TableCell>{collector.members[0]?.count || 0}</TableCell>
-                  <TableCell>£{(collector.payments[0]?.sum || 0).toFixed(2)}</TableCell>
+                  <TableCell>£{getCollectorTotal(collector).toFixed(2)}</TableCell>
                   <TableCell>
-                    £{((collector.payments[0]?.sum || 0) * Math.random()).toFixed(2)}
+                    £{getMonthlyTotal(collector).toFixed(2)}
                   </TableCell>
                   <TableCell>
                     <Button variant="ghost" size="sm">View Details</Button>

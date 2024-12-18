@@ -11,7 +11,7 @@ type CollectorWithStats = {
   id: string;
   name: string;
   members: { count: number }[];
-  payments: { sum: number }[];
+  payments: { sum: number | null }[];
   active: boolean;
 }
 
@@ -26,9 +26,7 @@ export function FinanceCollectorsTab() {
         .select(`
           *,
           members:members(count),
-          payments:payments(
-            sum(amount)
-          )
+          payments:payments(sum:amount)
         `)
         .eq('active', true);
 

@@ -1,14 +1,25 @@
+import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Download, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-
-const collectors = [
-  { id: 1, name: "Anjum Riaz", members: 161 },
-  { id: 2, name: "Zabbie", members: 116 },
-];
+import { supabase } from "@/integrations/supabase/client";
 
 export function FinanceReportsTab() {
+  const { data: collectors } = useQuery({
+    queryKey: ['collectors', 'active'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('collectors')
+        .select('*')
+        .eq('active', true)
+        .order('name');
+      
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
   const generateReport = () => {
     console.log("Generating report...");
   };
@@ -49,8 +60,8 @@ export function FinanceReportsTab() {
                 <SelectValue placeholder="Select collector" />
               </SelectTrigger>
               <SelectContent>
-                {collectors.map((collector) => (
-                  <SelectItem key={collector.id} value={collector.name}>
+                {collectors?.map((collector) => (
+                  <SelectItem key={collector.id} value={collector.id}>
                     {collector.name}
                   </SelectItem>
                 ))}

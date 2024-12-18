@@ -25,39 +25,60 @@ export function AdminLayout() {
   const navigate = useNavigate();
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [hasNavigated, setHasNavigated] = useState(false);
 
   useEffect(() => {
+    let isMounted = true;
+
     const checkSession = async () => {
       try {
-        const { data: { session } } = await supabase.auth.getSession();
-        setIsLoggedIn(!!session);
+        const { data: { session }, error } = await supabase.auth.getSession();
         
-        if (!session && !hasNavigated) {
-          setHasNavigated(true);
-          navigate("/login");
+        if (error) {
+          console.error("Session check error:", error);
+          if (isMounted) {
+            setIsLoggedIn(false);
+            setLoading(false);
+            navigate("/login");
+          }
+          return;
+        }
+
+        if (isMounted) {
+          setIsLoggedIn(!!session);
+          setLoading(false);
+          
+          if (!session) {
+            navigate("/login");
+          }
         }
       } catch (error) {
-        console.error("Session check error:", error);
-      } finally {
-        setLoading(false);
+        console.error("Session check failed:", error);
+        if (isMounted) {
+          setIsLoggedIn(false);
+          setLoading(false);
+          navigate("/login");
+        }
       }
     };
 
     checkSession();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (!isMounted) return;
+      
+      console.log("Auth state changed:", event, !!session);
       setIsLoggedIn(!!session);
-      if (!session && !hasNavigated) {
-        setHasNavigated(true);
+      
+      if (!session) {
         navigate("/login");
       }
     });
 
     return () => {
+      isMounted = false;
       subscription.unsubscribe();
     };
-  }, [navigate, hasNavigated]);
+  }, [navigate]);
 
   if (loading) {
     return (

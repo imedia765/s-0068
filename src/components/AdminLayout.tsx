@@ -25,33 +25,49 @@ export function AdminLayout() {
   const navigate = useNavigate();
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [hasNavigated, setHasNavigated] = useState(false);
 
   useEffect(() => {
     const checkSession = async () => {
-      setLoading(true);
-      const { data: { session } } = await supabase.auth.getSession();
-      setIsLoggedIn(!!session);
-      setLoading(false);
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        setIsLoggedIn(!!session);
+        
+        if (!session && !hasNavigated) {
+          setHasNavigated(true);
+          navigate("/login");
+        }
+      } catch (error) {
+        console.error("Session check error:", error);
+      } finally {
+        setLoading(false);
+      }
     };
 
     checkSession();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       setIsLoggedIn(!!session);
+      if (!session && !hasNavigated) {
+        setHasNavigated(true);
+        navigate("/login");
+      }
     });
 
     return () => {
       subscription.unsubscribe();
     };
-  }, [navigate]);
-
+  }, [navigate, hasNavigated]);
 
   if (loading) {
-    return <div>Loading...</div>;
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-muted-foreground">Loading...</div>
+      </div>
+    );
   }
 
   if (!isLoggedIn) {
-    navigate("/login");
     return null;
   }
 

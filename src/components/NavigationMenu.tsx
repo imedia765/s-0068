@@ -26,15 +26,38 @@ export function NavigationMenu() {
         setIsLoggedIn(!!session);
         
         if (session) {
-          // Fetch user role from profiles table
-          const { data: profileData, error: profileError } = await supabase
-            .from('profiles')
-            .select('role')
-            .eq('user_id', session.user.id)
-            .single();
+          try {
+            // First try to get existing profile
+            const { data: profileData, error: profileError } = await supabase
+              .from('profiles')
+              .select('role')
+              .eq('user_id', session.user.id)
+              .single();
             
-          if (!profileError && profileData) {
-            setUserRole(profileData.role);
+            if (profileError) {
+              if (profileError.code === 'PGRST116') {
+                // Profile doesn't exist, create one with default role
+                const { data: newProfile, error: createError } = await supabase
+                  .from('profiles')
+                  .insert({
+                    user_id: session.user.id,
+                    email: session.user.email,
+                    role: 'member'
+                  })
+                  .select('role')
+                  .single();
+                
+                if (!createError && newProfile) {
+                  setUserRole(newProfile.role);
+                }
+              } else {
+                console.error("Profile fetch error:", profileError);
+              }
+            } else if (profileData) {
+              setUserRole(profileData.role);
+            }
+          } catch (error) {
+            console.error("Profile operation failed:", error);
           }
         }
       } catch (error) {
@@ -49,15 +72,34 @@ export function NavigationMenu() {
       
       if (event === "SIGNED_IN" && session) {
         setIsLoggedIn(true);
-        // Fetch user role when signed in
-        const { data: profileData } = await supabase
-          .from('profiles')
-          .select('role')
-          .eq('user_id', session.user.id)
-          .single();
+        try {
+          // Try to get or create profile when signed in
+          const { data: profileData, error: profileError } = await supabase
+            .from('profiles')
+            .select('role')
+            .eq('user_id', session.user.id)
+            .single();
           
-        if (profileData) {
-          setUserRole(profileData.role);
+          if (profileError && profileError.code === 'PGRST116') {
+            // Profile doesn't exist, create one
+            const { data: newProfile, error: createError } = await supabase
+              .from('profiles')
+              .insert({
+                user_id: session.user.id,
+                email: session.user.email,
+                role: 'member'
+              })
+              .select('role')
+              .single();
+            
+            if (!createError && newProfile) {
+              setUserRole(newProfile.role);
+            }
+          } else if (!profileError && profileData) {
+            setUserRole(profileData.role);
+          }
+        } catch (error) {
+          console.error("Profile operation failed:", error);
         }
         
         toast({

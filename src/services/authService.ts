@@ -18,44 +18,38 @@ export const signUpUser = async (email: string, password: string) => {
     if (error) {
       console.error("Sign up error:", error);
       
-      // Parse the error body if it's a string
-      let errorBody;
-      try {
-        errorBody = typeof error.message === 'string' ? JSON.parse(error.message) : null;
-      } catch {
-        errorBody = null;
+      // Check for rate limit directly from the error response
+      if (error.status === 429) {
+        throw new Error("You've reached the maximum number of registration attempts. Please wait a few minutes before trying again.");
       }
 
-      // Check for rate limit error in different possible locations
-      const isRateLimit = 
-        error.message?.includes('over_email_send_rate_limit') ||
-        errorBody?.code === 'over_email_send_rate_limit' ||
-        error.status === 429;
-
-      if (isRateLimit) {
-        // Try to extract wait time from various possible locations
-        let waitTimeMatch = 
-          error.message?.match(/after (\d+) seconds/) ||
-          errorBody?.message?.match(/after (\d+) seconds/);
-        
-        const waitTime = waitTimeMatch ? parseInt(waitTimeMatch[1]) : 60;
-        throw new Error(`Please wait ${waitTime} seconds before trying again.`);
+      // Handle already registered users
+      if (error.message?.includes('already registered')) {
+        throw new Error("This email is already registered. Please try logging in instead.");
       }
+
       throw error;
     }
 
     console.log("Sign up successful:", data);
     return data;
-  } catch (error) {
+  } catch (error: any) {
     console.error("Sign up error:", error);
-    throw error;
+    
+    // Check if it's our custom error message
+    if (error.message?.includes('maximum number of registration attempts') ||
+        error.message?.includes('already registered')) {
+      throw error;
+    }
+
+    // For unexpected errors, throw a generic message
+    throw new Error("Registration failed. Please try again later.");
   }
 };
 
 export const createUserProfile = async (userId: string, email: string) => {
   console.log("Creating user profile for:", userId);
   
-  // First, get the current session to ensure we're authenticated
   const { data: { session }, error: sessionError } = await supabase.auth.getSession();
   
   if (sessionError || !session) {
@@ -108,40 +102,86 @@ export const createMember = async (memberData: any, collectorId: string) => {
     updated_at: new Date().toISOString()
   };
 
-  const { data, error } = await supabase
-    .from('members')
-    .insert(memberObject)
-    .select()
-    .single();
+  try {
+    const { data, error } = await supabase
+      .from('members')
+      .insert(memberObject)
+      .select()
+      .single();
 
-  if (error) {
-    console.error("Member creation error:", error);
+    if (error) {
+      console.error("Member creation error:", error);
+      throw error;
+    }
+
+    console.log("Member created successfully:", data);
+    return data;
+  } catch (error) {
+    console.error("Error creating member:", error);
     throw error;
   }
-
-  console.log("Member created successfully:", data);
-  return data;
 };
 
 export const createRegistration = async (memberId: string) => {
   console.log("Creating registration for member:", memberId);
   
-  const { data, error } = await supabase
-    .from('registrations')
-    .insert({
-      member_id: memberId,
-      status: 'pending',
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
-    })
-    .select()
-    .single();
+  try {
+    const { data, error } = await supabase
+      .from('registrations')
+      .insert({
+        member_id: memberId,
+        status: 'pending',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      })
+      .select()
+      .single();
 
-  if (error) {
-    console.error("Registration creation error:", error);
+    if (error) {
+      console.error("Registration creation error:", error);
+      throw error;
+    }
+
+    console.log("Registration created successfully:", data);
+    return data;
+  } catch (error) {
+    console.error("Error creating registration:", error);
     throw error;
   }
+};
 
-  console.log("Registration created successfully:", data);
-  return data;
+export const updateMemberProfile = async (memberId: string, profileData: any) => {
+  console.log("Updating member profile:", { memberId, profileData });
+
+  try {
+    const { data, error } = await supabase
+      .from('members')
+      .update({
+        full_name: profileData.fullName,
+        email: profileData.email,
+        phone: profileData.mobile,
+        address: profileData.address,
+        town: profileData.town,
+        postcode: profileData.postCode,
+        date_of_birth: profileData.dob,
+        gender: profileData.gender,
+        marital_status: profileData.maritalStatus,
+        profile_updated: true,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', memberId)
+      .select()
+      .single();
+
+    if (error) {
+      console.error("Profile update error:", error);
+      throw error;
+    }
+
+    console.log("Profile updated successfully:", data);
+    return data;
+  } catch (error) {
+    console.error("Error updating profile:", error);
+    throw error;
+  }
 };

@@ -10,7 +10,7 @@ import { DependantsSection } from "@/components/registration/DependantsSection";
 import { MembershipSection } from "@/components/registration/MembershipSection";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { InfoIcon } from "lucide-react";
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { signUpUser, createUserProfile, createMember, createRegistration } from "@/services/authService";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -20,11 +20,18 @@ export default function Register() {
   const { register, handleSubmit, setValue, watch } = useForm();
   const [selectedCollectorId, setSelectedCollectorId] = useState<string>("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const spousesSectionRef = useRef<any>(null);
+  const dependantsSectionRef = useRef<any>(null);
 
   const onSubmit = async (data: any) => {
     try {
       setIsSubmitting(true);
-      console.log("Starting registration process with data:", { ...data, collectorId: selectedCollectorId });
+      console.log("Starting registration process with data:", { 
+        ...data, 
+        collectorId: selectedCollectorId,
+        spouses: spousesSectionRef.current?.getSpouses(),
+        dependants: dependantsSectionRef.current?.getDependants()
+      });
 
       if (!selectedCollectorId) {
         toast({
@@ -41,27 +48,15 @@ export default function Register() {
         throw new Error("Failed to create user account");
       }
 
-      // Wait for session to be established (max 10 seconds)
-      let session = null;
-      let attempts = 0;
-      while (!session && attempts < 10) {
-        const { data: sessionData } = await supabase.auth.getSession();
-        session = sessionData.session;
-        if (!session) {
-          await new Promise(resolve => setTimeout(resolve, 1000));
-          attempts++;
-        }
-      }
-
-      if (!session) {
-        throw new Error("Failed to establish session after multiple attempts");
-      }
-
       // Step 2: Create user profile
       await createUserProfile(authData.user.id, data.email);
 
-      // Step 3: Create member record
-      const member = await createMember(data, selectedCollectorId);
+      // Step 3: Create member record with family members
+      const member = await createMember({
+        ...data,
+        spouses: spousesSectionRef.current?.getSpouses(),
+        dependants: dependantsSectionRef.current?.getDependants()
+      }, selectedCollectorId);
 
       // Step 4: Create registration record
       await createRegistration(member.id);
@@ -73,11 +68,23 @@ export default function Register() {
 
       // Redirect to login page
       navigate("/login");
-    } catch (error) {
+    } catch (error: any) {
       console.error("Registration error:", error);
+      
+      // Show a user-friendly error message
+      let errorMessage = "An error occurred during registration. Please try again.";
+      
+      if (error.message) {
+        if (error.message.includes('rate limit')) {
+          errorMessage = error.message;
+        } else if (error.message.includes('already registered')) {
+          errorMessage = "This email is already registered. Please try logging in instead.";
+        }
+      }
+      
       toast({
         title: "Registration failed",
-        description: error instanceof Error ? error.message : "An error occurred during registration",
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
@@ -106,8 +113,8 @@ export default function Register() {
             <div className="space-y-8 divide-y divide-gray-200">
               <PersonalInfoSection register={register} setValue={setValue} watch={watch} />
               <NextOfKinSection />
-              <SpousesSection />
-              <DependantsSection />
+              <SpousesSection ref={spousesSectionRef} />
+              <DependantsSection ref={dependantsSectionRef} />
               <MembershipSection onCollectorChange={setSelectedCollectorId} />
             </div>
             

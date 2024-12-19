@@ -89,13 +89,13 @@ const handleSuccessfulLogin = async (session: any, navigate: (path: string) => v
 
     // Check if profile needs to be updated
     if (member && !member.profile_updated) {
-      navigate("/profile");
+      navigate("/admin/profile");
       return;
     }
 
     // Check if password needs to be changed
     if (member && !member.password_changed) {
-      navigate("/change-password");
+      navigate("/admin/profile");
       return;
     }
 

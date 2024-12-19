@@ -19,6 +19,7 @@ export const PasswordChangeForm = () => {
   useEffect(() => {
     const fetchUserData = async () => {
       try {
+        console.log("Fetching user data...");
         const { data: { user } } = await supabase.auth.getUser();
         if (!user?.email) {
           throw new Error("No authenticated user found");
@@ -30,7 +31,10 @@ export const PasswordChangeForm = () => {
           .eq('email', user.email)
           .single();
 
-        if (memberError) throw memberError;
+        if (memberError) {
+          console.error("Member data fetch error:", memberError);
+          throw memberError;
+        }
         
         console.log("Fetched member data:", memberData);
         setUserData(memberData);
@@ -79,11 +83,13 @@ export const PasswordChangeForm = () => {
         profile_updated: true
       };
 
-      const { error: passwordError } = await supabase.auth.updateUser({
-        password: newPassword,
-      });
+      if (newPassword) {
+        const { error: passwordError } = await supabase.auth.updateUser({
+          password: newPassword,
+        });
 
-      if (passwordError) throw passwordError;
+        if (passwordError) throw passwordError;
+      }
 
       const { data: { user } } = await supabase.auth.getUser();
       if (user?.email) {

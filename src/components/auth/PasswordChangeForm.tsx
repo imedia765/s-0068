@@ -7,12 +7,15 @@ import { Card } from "@/components/ui/card";
 import { Loader2 } from "lucide-react";
 import { ProfileFormFields } from "./ProfileFormFields";
 import { PasswordFields } from "./PasswordFields";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { InfoIcon } from "lucide-react";
 
 export const PasswordChangeForm = () => {
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [userData, setUserData] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isFirstTimeLogin, setIsFirstTimeLogin] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -38,6 +41,7 @@ export const PasswordChangeForm = () => {
         
         console.log("Fetched member data:", memberData);
         setUserData(memberData);
+        setIsFirstTimeLogin(memberData.first_time_login || false);
       } catch (error) {
         console.error("Error fetching user data:", error);
         toast({
@@ -65,9 +69,25 @@ export const PasswordChangeForm = () => {
       return;
     }
 
+    const formData = new FormData(e.currentTarget);
+    const requiredFields = [
+      'fullName', 'email', 'phone', 'address', 'town', 
+      'postcode', 'dob', 'gender', 'maritalStatus'
+    ];
+
+    // Check if all required fields are filled
+    const missingFields = requiredFields.filter(field => !formData.get(field));
+    if (missingFields.length > 0) {
+      toast({
+        title: "Missing Required Fields",
+        description: "Please fill in all required fields to complete your profile.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     try {
       setIsLoading(true);
-      const formData = new FormData(e.currentTarget);
       
       const updatedData = {
         full_name: String(formData.get('fullName') || ''),
@@ -80,7 +100,9 @@ export const PasswordChangeForm = () => {
         gender: String(formData.get('gender') || ''),
         marital_status: String(formData.get('maritalStatus') || ''),
         password_changed: true,
-        profile_updated: true
+        profile_updated: true,
+        first_time_login: false,
+        profile_completed: true
       };
 
       if (newPassword) {
@@ -129,8 +151,20 @@ export const PasswordChangeForm = () => {
 
   return (
     <Card className="p-6">
+      {isFirstTimeLogin && (
+        <Alert className="mb-6 bg-blue-50 border-blue-200">
+          <InfoIcon className="h-4 w-4 text-blue-500" />
+          <AlertDescription className="text-sm text-blue-700">
+            Welcome! Please complete your profile information. All fields are required for first-time login.
+          </AlertDescription>
+        </Alert>
+      )}
       <form onSubmit={handleSubmit} className="space-y-6">
-        <ProfileFormFields userData={userData} isLoading={isLoading} />
+        <ProfileFormFields 
+          userData={userData} 
+          isLoading={isLoading} 
+          isRequired={isFirstTimeLogin}
+        />
         <PasswordFields
           newPassword={newPassword}
           confirmPassword={confirmPassword}

@@ -40,6 +40,7 @@ export function NavigationMenu() {
         });
       } else if (event === "SIGNED_OUT") {
         setIsLoggedIn(false);
+        navigate('/login');
       } else if (event === "TOKEN_REFRESHED") {
         console.log("Token refreshed successfully");
       } else if (event === "USER_UPDATED") {
@@ -50,7 +51,7 @@ export function NavigationMenu() {
     return () => {
       subscription.unsubscribe();
     };
-  }, [toast]);
+  }, [toast, navigate]);
 
   const handleNavigation = (path: string) => {
     setOpen(false);
@@ -59,6 +60,16 @@ export function NavigationMenu() {
 
   const handleLogout = async () => {
     try {
+      // First check if we have a session
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session) {
+        console.log("No active session found, redirecting to login");
+        setIsLoggedIn(false);
+        navigate('/login');
+        return;
+      }
+
       const { error } = await supabase.auth.signOut();
       if (error) {
         console.error("Logout error:", error);
@@ -78,10 +89,12 @@ export function NavigationMenu() {
       navigate("/login");
     } catch (error) {
       console.error("Logout error:", error);
+      // If we catch an error here, we should still redirect to login
+      setIsLoggedIn(false);
+      navigate('/login');
       toast({
-        title: "Logout failed",
-        description: "An unexpected error occurred",
-        variant: "destructive",
+        title: "Session ended",
+        description: "You have been logged out.",
       });
     }
   };

@@ -27,68 +27,31 @@ export function AdminLayout() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    let isMounted = true;
-
     const checkSession = async () => {
-      try {
-        const { data: { session }, error } = await supabase.auth.getSession();
-        
-        if (error) {
-          console.error("Session check error:", error);
-          if (isMounted) {
-            setIsLoggedIn(false);
-            setLoading(false);
-            navigate("/login");
-          }
-          return;
-        }
-
-        if (isMounted) {
-          setIsLoggedIn(!!session);
-          setLoading(false);
-          
-          if (!session) {
-            navigate("/login");
-          }
-        }
-      } catch (error) {
-        console.error("Session check failed:", error);
-        if (isMounted) {
-          setIsLoggedIn(false);
-          setLoading(false);
-          navigate("/login");
-        }
-      }
+      setLoading(true);
+      const { data: { session } } = await supabase.auth.getSession();
+      setIsLoggedIn(!!session);
+      setLoading(false);
     };
 
     checkSession();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      if (!isMounted) return;
-      
-      console.log("Auth state changed:", event, !!session);
       setIsLoggedIn(!!session);
-      
-      if (!session) {
-        navigate("/login");
-      }
     });
 
     return () => {
-      isMounted = false;
       subscription.unsubscribe();
     };
   }, [navigate]);
 
+
   if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-muted-foreground">Loading...</div>
-      </div>
-    );
+    return <div>Loading...</div>;
   }
 
   if (!isLoggedIn) {
+    navigate("/login");
     return null;
   }
 

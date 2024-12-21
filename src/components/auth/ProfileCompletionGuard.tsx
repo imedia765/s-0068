@@ -22,7 +22,7 @@ export const ProfileCompletionGuard = ({ children }: ProfileCompletionGuardProps
   const navigate = useNavigate();
   const { toast } = useToast();
 
-  const { data: profile } = useQuery({
+  const { data: profile, refetch } = useQuery({
     queryKey: ['profile-completion-check'],
     queryFn: async () => {
       try {
@@ -102,6 +102,9 @@ export const ProfileCompletionGuard = ({ children }: ProfileCompletionGuardProps
           if (updateError) {
             console.error("Error updating profile completion status:", updateError);
           }
+          
+          // Refetch to get the updated status
+          return refetch();
         }
         
         return {
@@ -109,14 +112,16 @@ export const ProfileCompletionGuard = ({ children }: ProfileCompletionGuardProps
           email: memberData.email,
           created_at: memberData.created_at,
           updated_at: memberData.updated_at,
-          profile_completed: isProfileComplete
+          profile_completed: isProfileComplete || memberData.profile_completed
         } as ProfileData;
       } catch (error) {
         console.error("Profile check error:", error);
         throw error;
       }
     },
-    retry: 1,
+    refetchOnWindowFocus: true,
+    refetchOnMount: true,
+    staleTime: 1000, // Consider data stale after 1 second
   });
 
   useEffect(() => {

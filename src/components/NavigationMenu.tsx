@@ -19,15 +19,17 @@ export function NavigationMenu() {
     queryFn: async () => {
       if (!isLoggedIn) return null;
       
-      // First get the current user's ID
+      // First get the current user's email
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return null;
+      if (!user?.email) return null;
 
-      // Then fetch their profile using their ID
+      console.log("Looking up profile for email:", user.email);
+
+      // Then fetch their profile using their email
       const { data: profile, error } = await supabase
         .from('profiles')
         .select('role')
-        .eq('id', user.id)
+        .eq('email', user.email)
         .maybeSingle();
 
       if (error) {

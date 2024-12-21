@@ -18,10 +18,23 @@ export function NavigationMenu() {
     queryKey: ['user-role'],
     queryFn: async () => {
       if (!isLoggedIn) return null;
-      const { data: profile } = await supabase
+      
+      // First get the current user's ID
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return null;
+
+      // Then fetch their profile using their ID
+      const { data: profile, error } = await supabase
         .from('profiles')
         .select('role')
-        .single();
+        .eq('id', user.id)
+        .maybeSingle();
+
+      if (error) {
+        console.error('Error fetching user role:', error);
+        return null;
+      }
+
       return profile?.role;
     },
     enabled: isLoggedIn,

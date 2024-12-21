@@ -9,6 +9,9 @@ import { ProfileFormFields } from "./ProfileFormFields";
 import { PasswordFields } from "./PasswordFields";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { InfoIcon } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
+import { updateProfileAndEmail } from "@/utils/profileUpdateHandler";
+import { validateProfileForm } from "@/utils/profileValidation";
 
 export const PasswordChangeForm = () => {
   const [newPassword, setNewPassword] = useState("");
@@ -16,118 +19,134 @@ export const PasswordChangeForm = () => {
   const [userData, setUserData] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isFirstTimeLogin, setIsFirstTimeLogin] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { checkSession } = useAuth();
 
   useEffect(() => {
     const fetchUserData = async () => {
       try {
         console.log("Fetching user data...");
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user?.email) {
-          throw new Error("No authenticated user found");
+        
+        const isValid = await checkSession();
+        if (!isValid) {
+          console.log("No valid session, redirecting to login");
+          navigate("/login");
+          return;
         }
+
+        const { data: { user }, error: userError } = await supabase.auth.getUser();
+        if (userError || !user?.email) {
+          console.error("Error fetching auth user:", userError);
+          throw new Error(userError?.message || "No authenticated user found");
+        }
+
+        console.log("Found authenticated user:", user.email);
 
         const { data: memberData, error: memberError } = await supabase
           .from('members')
           .select('*')
           .eq('email', user.email)
-          .single();
+          .maybeSingle();
 
-        if (memberError) {
+        if (memberError && memberError.code !== 'PGRST116') {
           console.error("Member data fetch error:", memberError);
           throw memberError;
         }
-        
-        console.log("Fetched member data:", memberData);
-        setUserData(memberData);
-        setIsFirstTimeLogin(memberData.first_time_login || false);
+
+        if (!memberData) {
+          console.log("No member found for email:", user.email);
+          const { data: newMember, error: createError } = await supabase
+            .from('members')
+            .insert({
+              email: user.email,
+              member_number: 'PENDING',
+              full_name: user.user_metadata.full_name || 'New Member',
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString(),
+              first_time_login: true,
+              status: 'active',
+              membership_type: 'standard'
+            })
+            .select()
+            .single();
+
+          if (createError) {
+            console.error("Error creating new member:", createError);
+            throw createError;
+          }
+
+          console.log("Created new member record:", newMember);
+          setUserData(newMember);
+          setIsFirstTimeLogin(true);
+        } else {
+          console.log("Found existing member:", memberData);
+          setUserData(memberData);
+          setIsFirstTimeLogin(memberData.first_time_login || false);
+        }
       } catch (error) {
         console.error("Error fetching user data:", error);
         toast({
           title: "Error",
-          description: "Failed to load user data",
+          description: "Failed to load user data. Please try logging in again.",
           variant: "destructive",
         });
+        navigate("/login");
       } finally {
         setIsLoading(false);
       }
     };
 
     fetchUserData();
-  }, [toast]);
+  }, [navigate, toast, checkSession]);
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    setFieldErrors({});
+    setIsLoading(true);
     
-    if (newPassword !== confirmPassword) {
-      toast({
-        title: "Passwords don't match",
-        description: "Please make sure your passwords match",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    const formData = new FormData(e.currentTarget);
-    const requiredFields = [
-      'fullName', 'email', 'phone', 'address', 'town', 
-      'postcode', 'dob', 'gender', 'maritalStatus'
-    ];
-
-    // Check if all required fields are filled
-    const missingFields = requiredFields.filter(field => !formData.get(field));
-    if (missingFields.length > 0) {
-      toast({
-        title: "Missing Required Fields",
-        description: "Please fill in all required fields to complete your profile.",
-        variant: "destructive",
-      });
-      return;
-    }
-
     try {
-      setIsLoading(true);
+      const formData = new FormData(e.currentTarget);
+      const errors: Record<string, string> = {};
       
-      const updatedData = {
-        full_name: String(formData.get('fullName') || ''),
-        email: String(formData.get('email') || ''),
-        phone: String(formData.get('phone') || ''),
-        address: String(formData.get('address') || ''),
-        town: String(formData.get('town') || ''),
-        postcode: String(formData.get('postcode') || ''),
-        date_of_birth: String(formData.get('dob') || ''),
-        gender: String(formData.get('gender') || ''),
-        marital_status: String(formData.get('maritalStatus') || ''),
-        password_changed: true,
-        profile_updated: true,
-        first_time_login: false,
-        profile_completed: true
-      };
+      // Check required fields
+      const requiredFields = [
+        'fullName', 'email', 'phone', 'address', 'town', 
+        'postcode', 'dob', 'gender', 'maritalStatus'
+      ];
 
-      if (newPassword) {
-        const { error: passwordError } = await supabase.auth.updateUser({
-          password: newPassword,
-        });
+      requiredFields.forEach(field => {
+        if (!formData.get(field)) {
+          errors[field] = 'This field is required';
+        }
+      });
 
-        if (passwordError) throw passwordError;
+      // Validate email format
+      const email = formData.get('email') as string;
+      if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        errors['email'] = 'Please enter a valid email address';
       }
 
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user?.email) {
-        const { error: updateError } = await supabase
-          .from('members')
-          .update(updatedData)
-          .eq('email', user.email);
-
-        if (updateError) throw updateError;
+      // Validate password match if changing password
+      if (newPassword && newPassword !== confirmPassword) {
+        errors['password'] = "Passwords don't match";
       }
+
+      if (Object.keys(errors).length > 0) {
+        setFieldErrors(errors);
+        throw new Error("Please fill in all required fields correctly");
+      }
+      
+      // Perform the update
+      await updateProfileAndEmail(formData, newPassword, userData.email);
 
       toast({
         title: "Profile updated",
-        description: "Your profile has been updated successfully",
+        description: "Your profile has been updated successfully. Please check your email to verify your new email address.",
       });
       
+      // After successful update, navigate to admin dashboard
       navigate("/admin");
     } catch (error) {
       console.error("Update error:", error);
@@ -141,7 +160,7 @@ export const PasswordChangeForm = () => {
     }
   };
 
-  if (isLoading) {
+  if (!userData) {
     return (
       <div className="flex justify-center items-center p-8">
         <Loader2 className="h-8 w-8 animate-spin" />
@@ -155,7 +174,7 @@ export const PasswordChangeForm = () => {
         <Alert className="mb-6 bg-blue-50 border-blue-200">
           <InfoIcon className="h-4 w-4 text-blue-500" />
           <AlertDescription className="text-sm text-blue-700">
-            Welcome! Please complete your profile information. All fields are required for first-time login.
+            Welcome! Please complete your profile information and update your email. All fields are required for first-time login.
           </AlertDescription>
         </Alert>
       )}
@@ -163,7 +182,8 @@ export const PasswordChangeForm = () => {
         <ProfileFormFields 
           userData={userData} 
           isLoading={isLoading} 
-          isRequired={isFirstTimeLogin}
+          isRequired={true}
+          errors={fieldErrors}
         />
         <PasswordFields
           newPassword={newPassword}
@@ -171,6 +191,7 @@ export const PasswordChangeForm = () => {
           setNewPassword={setNewPassword}
           setConfirmPassword={setConfirmPassword}
           isLoading={isLoading}
+          error={fieldErrors['password']}
         />
         <Button type="submit" className="w-full" disabled={isLoading}>
           {isLoading ? (

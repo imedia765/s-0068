@@ -6,9 +6,10 @@ interface ProfileFormFieldsProps {
   userData: any;
   isLoading: boolean;
   isRequired?: boolean;
+  errors?: Record<string, string>;
 }
 
-export const ProfileFormFields = ({ userData, isLoading, isRequired = false }: ProfileFormFieldsProps) => {
+export const ProfileFormFields = ({ userData, isLoading, isRequired = false, errors = {} }: ProfileFormFieldsProps) => {
   return (
     <div className="grid gap-4 md:grid-cols-2">
       <div className="space-y-2">
@@ -21,7 +22,11 @@ export const ProfileFormFields = ({ userData, isLoading, isRequired = false }: P
           defaultValue={userData?.full_name}
           disabled={isLoading}
           required={isRequired}
+          className={errors.fullName ? "border-red-500" : ""}
         />
+        {errors.fullName && (
+          <p className="text-sm text-red-500">{errors.fullName}</p>
+        )}
       </div>
       
       <div className="space-y-2">
@@ -35,7 +40,11 @@ export const ProfileFormFields = ({ userData, isLoading, isRequired = false }: P
           defaultValue={userData?.email}
           disabled={isLoading}
           required={isRequired}
+          className={errors.email ? "border-red-500" : ""}
         />
+        {errors.email && (
+          <p className="text-sm text-red-500">{errors.email}</p>
+        )}
       </div>
 
       <div className="space-y-2">
@@ -49,7 +58,11 @@ export const ProfileFormFields = ({ userData, isLoading, isRequired = false }: P
           defaultValue={userData?.phone}
           disabled={isLoading}
           required={isRequired}
+          className={errors.phone ? "border-red-500" : ""}
         />
+        {errors.phone && (
+          <p className="text-sm text-red-500">{errors.phone}</p>
+        )}
       </div>
 
       <div className="space-y-2">
@@ -62,7 +75,11 @@ export const ProfileFormFields = ({ userData, isLoading, isRequired = false }: P
           defaultValue={userData?.address}
           disabled={isLoading}
           required={isRequired}
+          className={errors.address ? "border-red-500" : ""}
         />
+        {errors.address && (
+          <p className="text-sm text-red-500">{errors.address}</p>
+        )}
       </div>
 
       <div className="space-y-2">
@@ -75,7 +92,11 @@ export const ProfileFormFields = ({ userData, isLoading, isRequired = false }: P
           defaultValue={userData?.town}
           disabled={isLoading}
           required={isRequired}
+          className={errors.town ? "border-red-500" : ""}
         />
+        {errors.town && (
+          <p className="text-sm text-red-500">{errors.town}</p>
+        )}
       </div>
 
       <div className="space-y-2">
@@ -88,7 +109,11 @@ export const ProfileFormFields = ({ userData, isLoading, isRequired = false }: P
           defaultValue={userData?.postcode}
           disabled={isLoading}
           required={isRequired}
+          className={errors.postcode ? "border-red-500" : ""}
         />
+        {errors.postcode && (
+          <p className="text-sm text-red-500">{errors.postcode}</p>
+        )}
       </div>
 
       <div className="space-y-2">
@@ -102,7 +127,11 @@ export const ProfileFormFields = ({ userData, isLoading, isRequired = false }: P
           defaultValue={userData?.date_of_birth}
           disabled={isLoading}
           required={isRequired}
+          className={errors.dob ? "border-red-500" : ""}
         />
+        {errors.dob && (
+          <p className="text-sm text-red-500">{errors.dob}</p>
+        )}
       </div>
 
       <div className="space-y-2">
@@ -110,7 +139,7 @@ export const ProfileFormFields = ({ userData, isLoading, isRequired = false }: P
           Gender {isRequired && <span className="text-red-500">*</span>}
         </label>
         <Select name="gender" defaultValue={userData?.gender} required={isRequired} disabled={isLoading}>
-          <SelectTrigger>
+          <SelectTrigger className={errors.gender ? "border-red-500" : ""}>
             <SelectValue placeholder="Select Gender" />
           </SelectTrigger>
           <SelectContent>
@@ -119,6 +148,9 @@ export const ProfileFormFields = ({ userData, isLoading, isRequired = false }: P
             <SelectItem value="other">Other</SelectItem>
           </SelectContent>
         </Select>
+        {errors.gender && (
+          <p className="text-sm text-red-500">{errors.gender}</p>
+        )}
       </div>
 
       <div className="space-y-2">
@@ -126,7 +158,7 @@ export const ProfileFormFields = ({ userData, isLoading, isRequired = false }: P
           Marital Status {isRequired && <span className="text-red-500">*</span>}
         </label>
         <Select name="maritalStatus" defaultValue={userData?.marital_status} required={isRequired} disabled={isLoading}>
-          <SelectTrigger>
+          <SelectTrigger className={errors.maritalStatus ? "border-red-500" : ""}>
             <SelectValue placeholder="Select Marital Status" />
           </SelectTrigger>
           <SelectContent>
@@ -136,6 +168,9 @@ export const ProfileFormFields = ({ userData, isLoading, isRequired = false }: P
             <SelectItem value="widowed">Widowed</SelectItem>
           </SelectContent>
         </Select>
+        {errors.maritalStatus && (
+          <p className="text-sm text-red-500">{errors.maritalStatus}</p>
+        )}
       </div>
     </div>
   );

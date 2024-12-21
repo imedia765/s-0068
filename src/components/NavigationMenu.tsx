@@ -3,100 +3,17 @@ import { Button } from "./ui/button";
 import { ThemeToggle } from "./ThemeToggle";
 import { Menu } from "lucide-react";
 import { Sheet, SheetContent, SheetTrigger } from "./ui/sheet";
-import { useState, useEffect } from "react";
-import { supabase } from "../integrations/supabase/client";
-import { useToast } from "./ui/use-toast";
+import { useState } from "react";
+import { useAuth } from "@/contexts/AuthContext";
 
 export function NavigationMenu() {
   const [open, setOpen] = useState(false);
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const { isLoggedIn, logout } = useAuth();
   const navigate = useNavigate();
-  const { toast } = useToast();
-
-  useEffect(() => {
-    const checkSession = async () => {
-      try {
-        const { data: { session }, error } = await supabase.auth.getSession();
-        if (error) {
-          console.error("Session check error:", error);
-          return;
-        }
-        setIsLoggedIn(!!session);
-      } catch (error) {
-        console.error("Session check failed:", error);
-      }
-    };
-
-    checkSession();
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log("Auth state changed:", event, !!session);
-      
-      if (event === "SIGNED_IN" && session) {
-        setIsLoggedIn(true);
-        toast({
-          title: "Signed in successfully",
-          description: "Welcome back!",
-        });
-      } else if (event === "SIGNED_OUT") {
-        setIsLoggedIn(false);
-        navigate('/login');
-      } else if (event === "TOKEN_REFRESHED") {
-        console.log("Token refreshed successfully");
-      } else if (event === "USER_UPDATED") {
-        console.log("User data updated");
-      }
-    });
-
-    return () => {
-      subscription.unsubscribe();
-    };
-  }, [toast, navigate]);
 
   const handleNavigation = (path: string) => {
-    setOpen(false);
     navigate(path);
-  };
-
-  const handleLogout = async () => {
-    try {
-      // First check if we have a session
-      const { data: { session } } = await supabase.auth.getSession();
-      
-      if (!session) {
-        console.log("No active session found, redirecting to login");
-        setIsLoggedIn(false);
-        navigate('/login');
-        return;
-      }
-
-      const { error } = await supabase.auth.signOut();
-      if (error) {
-        console.error("Logout error:", error);
-        toast({
-          title: "Logout failed",
-          description: error.message,
-          variant: "destructive",
-        });
-        return;
-      }
-      
-      setIsLoggedIn(false);
-      toast({
-        title: "Logged out successfully",
-        description: "Come back soon!",
-      });
-      navigate("/login");
-    } catch (error) {
-      console.error("Logout error:", error);
-      // If we catch an error here, we should still redirect to login
-      setIsLoggedIn(false);
-      navigate('/login');
-      toast({
-        title: "Session ended",
-        description: "You have been logged out.",
-      });
-    }
+    setOpen(false);
   };
 
   return (
@@ -111,7 +28,7 @@ export function NavigationMenu() {
         {/* Desktop Navigation */}
         <div className="hidden md:flex items-center space-x-2">
           {isLoggedIn ? (
-            <Button variant="outline" size="sm" onClick={handleLogout}>
+            <Button variant="outline" size="sm" onClick={logout}>
               Logout
             </Button>
           ) : (
@@ -136,26 +53,32 @@ export function NavigationMenu() {
           <ThemeToggle />
         </div>
 
-        {/* Mobile Navigation */}
+        {/* Mobile Navigation - Always show menu button */}
         <div className="flex items-center space-x-2 md:hidden">
           <ThemeToggle />
           <Sheet open={open} onOpenChange={setOpen}>
             <SheetTrigger asChild>
-              <Button variant="ghost" size="icon" className="md:hidden">
+              <Button variant="ghost" size="icon">
                 <Menu className="h-5 w-5" />
                 <span className="sr-only">Toggle menu</span>
               </Button>
             </SheetTrigger>
-            <SheetContent side="right" className="w-[80%] sm:w-[385px] p-0">
+            <SheetContent side="right" className="w-[80%] sm:w-[385px]">
               <div className="flex flex-col gap-4 p-6">
-                <div className="text-xl font-bold bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent mb-4">
-                  Menu
-                </div>
+                <h2 className="text-xl font-bold bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent mb-4">
+                  Navigation Menu
+                </h2>
+                <p className="text-sm text-muted-foreground mb-4">
+                  Access your account and manage your preferences
+                </p>
                 {isLoggedIn ? (
                   <Button
                     variant="outline"
                     className="justify-start bg-blue-50 dark:bg-blue-900/20 hover:bg-blue-100 dark:hover:bg-blue-900/30 text-blue-700 dark:text-blue-300"
-                    onClick={handleLogout}
+                    onClick={() => {
+                      logout();
+                      setOpen(false);
+                    }}
                   >
                     Logout
                   </Button>

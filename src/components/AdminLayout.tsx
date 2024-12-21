@@ -1,172 +1,88 @@
-import { Link, Outlet, useNavigate } from "react-router-dom";
-import { LayoutDashboard, Users, UserCheck, ClipboardList, Database, DollarSign, UserCircle, ChevronDown, HeadsetIcon } from "lucide-react";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "./ui/dropdown-menu";
+import { Outlet } from "react-router-dom";
+import { Header } from "./Header";
+import { Footer } from "./Footer";
+import { ProfileCompletionGuard } from "./auth/ProfileCompletionGuard";
 import { Button } from "./ui/button";
-import { useEffect, useState } from "react";
-import { supabase } from "../integrations/supabase/client";
-import { useToast } from "./ui/use-toast";
+import { Menu } from "lucide-react";
+import { Sheet, SheetContent, SheetTrigger } from "./ui/sheet";
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 
-const menuItems = [
-  { icon: LayoutDashboard, label: "Dashboard", to: "/admin" },
-  { icon: Users, label: "Members", to: "/admin/members" },
-  { icon: UserCheck, label: "Collectors", to: "/admin/collectors" },
-  { icon: ClipboardList, label: "Registrations", to: "/admin/registrations" },
-  { icon: Database, label: "Database", to: "/admin/database" },
-  { icon: DollarSign, label: "Finance", to: "/admin/finance" },
-  { icon: HeadsetIcon, label: "Support Tickets", to: "/admin/support" },
-  { icon: UserCircle, label: "Profile", to: "/admin/profile" },
-];
-
-export function AdminLayout() {
+export const AdminLayout = () => {
+  const [open, setOpen] = useState(false);
   const navigate = useNavigate();
-  const { toast } = useToast();
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    let isMounted = true;
-
-    const checkSession = async () => {
-      try {
-        console.log("Checking session...");
-        const { data: { session }, error } = await supabase.auth.getSession();
-        
-        if (error) {
-          console.error("Session check error:", error);
-          if (isMounted) {
-            setIsLoggedIn(false);
-            setLoading(false);
-            navigate("/login");
-          }
-          return;
-        }
-
-        if (!session) {
-          console.log("No session found");
-          if (isMounted) {
-            setIsLoggedIn(false);
-            setLoading(false);
-            navigate("/login");
-          }
-          return;
-        }
-
-        // Verify the session is still valid
-        const { data: user, error: userError } = await supabase.auth.getUser();
-        
-        if (userError || !user) {
-          console.error("User verification failed:", userError);
-          if (isMounted) {
-            setIsLoggedIn(false);
-            setLoading(false);
-            // Clear any invalid session data
-            await supabase.auth.signOut();
-            navigate("/login");
-          }
-          return;
-        }
-
-        console.log("Valid session found");
-        if (isMounted) {
-          setIsLoggedIn(true);
-          setLoading(false);
-        }
-      } catch (error) {
-        console.error("Session check failed:", error);
-        if (isMounted) {
-          setIsLoggedIn(false);
-          setLoading(false);
-          navigate("/login");
-          toast({
-            title: "Session Error",
-            description: "Please sign in again",
-            variant: "destructive",
-          });
-        }
-      }
-    };
-
-    checkSession();
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (!isMounted) return;
-      
-      console.log("Auth state changed:", event, !!session);
-      
-      if (event === 'TOKEN_REFRESHED') {
-        console.log('Token refreshed successfully');
-      } else if (event === 'SIGNED_OUT' || !session) {
-        console.log('User signed out or session ended');
-        setIsLoggedIn(false);
-        navigate("/login");
-      } else if (event === 'SIGNED_IN' && session) {
-        console.log('User signed in');
-        setIsLoggedIn(true);
-      }
-    });
-
-    return () => {
-      console.log("Cleaning up auth subscription");
-      isMounted = false;
-      subscription.unsubscribe();
-    };
-  }, [navigate, toast]);
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center space-y-4">
-          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary mx-auto"></div>
-          <p className="text-muted-foreground">Loading...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (!isLoggedIn) {
-    return null;
-  }
+  const handleNavigation = (path: string) => {
+    navigate(path);
+    setOpen(false);
+  };
 
   return (
-    <div className="min-h-screen flex flex-col w-full bg-background">
-      <div className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="container py-2">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                variant="default"
-                className="w-full justify-between h-12"
+    <div className="min-h-screen flex flex-col">
+      <Header />
+      <main className="flex-1 container mx-auto px-4 py-8">
+        <div className="flex justify-between items-center mb-6">
+          <h1 className="text-2xl font-bold">Admin Panel</h1>
+          <Sheet open={open} onOpenChange={setOpen}>
+            <SheetTrigger asChild>
+              <Button 
+                variant="default" 
+                size="icon"
+                className="bg-blue-600 hover:bg-blue-700 text-white"
               >
-                <span className="font-semibold">Menu</span>
-                <ChevronDown className="h-4 w-4 opacity-50" />
+                <Menu className="h-5 w-5" />
+                <span className="sr-only">Toggle admin menu</span>
               </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent className="w-[calc(100vw-2rem)] max-w-[calc(1400px-4rem)]">
-              {menuItems.map((item) => (
-                <DropdownMenuItem
-                  key={item.to}
-                  onClick={() => navigate(item.to)}
-                  className="flex items-center gap-3 cursor-pointer py-3 px-4 hover:bg-blue-50 dark:hover:bg-blue-900/20 hover:text-blue-700 dark:hover:text-blue-300 text-base"
+            </SheetTrigger>
+            <SheetContent side="right" className="w-[80%] sm:w-[385px]">
+              <div className="flex flex-col gap-4 p-6">
+                <h2 className="text-xl font-bold bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent mb-4">
+                  Admin Navigation
+                </h2>
+                <Button
+                  variant="outline"
+                  className="justify-start bg-blue-50 dark:bg-blue-900/20 hover:bg-blue-100 dark:hover:bg-blue-900/30 text-blue-700 dark:text-blue-300"
+                  onClick={() => handleNavigation("/admin/members")}
                 >
-                  <item.icon className="h-5 w-5" />
-                  <span>{item.label}</span>
-                </DropdownMenuItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
+                  Members
+                </Button>
+                <Button
+                  variant="outline"
+                  className="justify-start bg-purple-50 dark:bg-purple-900/20 hover:bg-purple-100 dark:hover:bg-purple-900/30 text-purple-700 dark:text-purple-300"
+                  onClick={() => handleNavigation("/admin/collectors")}
+                >
+                  Collectors
+                </Button>
+                <Button
+                  variant="outline"
+                  className="justify-start bg-emerald-50 dark:bg-emerald-900/20 hover:bg-emerald-100 dark:hover:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300"
+                  onClick={() => handleNavigation("/admin/registrations")}
+                >
+                  Registrations
+                </Button>
+                <Button
+                  variant="outline"
+                  className="justify-start bg-amber-50 dark:bg-amber-900/20 hover:bg-amber-100 dark:hover:bg-amber-900/30 text-amber-700 dark:text-amber-300"
+                  onClick={() => handleNavigation("/admin/profile")}
+                >
+                  Profile
+                </Button>
+                <Button
+                  variant="outline"
+                  className="justify-start bg-cyan-50 dark:bg-cyan-900/20 hover:bg-cyan-100 dark:hover:bg-cyan-900/30 text-cyan-700 dark:text-cyan-300"
+                  onClick={() => handleNavigation("/admin/database")}
+                >
+                  Database
+                </Button>
+              </div>
+            </SheetContent>
+          </Sheet>
         </div>
-      </div>
-
-      <main className="flex-1">
-        <div className="p-4 md:p-8">
+        <ProfileCompletionGuard>
           <Outlet />
-        </div>
+        </ProfileCompletionGuard>
       </main>
+      <Footer />
     </div>
   );
-}
+};

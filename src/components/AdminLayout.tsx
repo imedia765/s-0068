@@ -21,8 +21,8 @@ export const AdminLayout = () => {
     <div className="min-h-screen flex flex-col">
       <Header />
       <main className="flex-1 container mx-auto px-4 py-8">
+        <h1 className="text-2xl font-bold mb-6">Admin Panel</h1>
         <div className="flex justify-between items-center mb-6">
-          <h1 className="text-2xl font-bold">Admin Panel</h1>
           <Sheet open={open} onOpenChange={setOpen}>
             <SheetTrigger asChild>
               <Button 

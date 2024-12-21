@@ -27,11 +27,10 @@ export const AdminLayout = () => {
             <SheetTrigger asChild>
               <Button 
                 variant="default" 
-                size="icon"
-                className="bg-blue-600 hover:bg-blue-700 text-white"
+                className="w-full bg-blue-600 hover:bg-blue-700 text-white"
               >
-                <Menu className="h-5 w-5" />
-                <span className="sr-only">Toggle admin menu</span>
+                <Menu className="h-5 w-5 mr-2" />
+                Menu
               </Button>
             </SheetTrigger>
             <SheetContent side="right" className="w-[80%] sm:w-[385px]">

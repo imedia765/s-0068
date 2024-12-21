@@ -14,11 +14,21 @@ export const handleMemberIdLogin = async (
       .from('members')
       .select('email, full_name')
       .eq('member_number', memberId)
-      .single();
+      .maybeSingle();
 
-    if (memberError || !memberData?.email) {
+    if (memberError) {
       console.error("Member lookup error:", memberError);
-      throw new Error("Member not found");
+      throw new Error("Error looking up member");
+    }
+
+    if (!memberData) {
+      console.error("No member found with ID:", memberId);
+      throw new Error("Member not found. Please check your Member ID.");
+    }
+
+    if (!memberData.email) {
+      console.error("Member has no email:", memberId);
+      throw new Error("Member account not properly configured. Please contact support.");
     }
 
     // Sign in with email and password
@@ -29,6 +39,9 @@ export const handleMemberIdLogin = async (
 
     if (signInError) {
       console.error("Sign in error:", signInError);
+      if (signInError.message.includes("Invalid login credentials")) {
+        throw new Error("Invalid password. For first-time login, use your Member ID as the password.");
+      }
       throw signInError;
     }
 
@@ -43,7 +56,7 @@ export const handleMemberIdLogin = async (
       .from('profiles')
       .select('*')
       .eq('id', signInData.user.id)
-      .single();
+      .maybeSingle();
 
     if (profileError && profileError.code !== 'PGRST116') {
       console.error("Error checking profile:", profileError);

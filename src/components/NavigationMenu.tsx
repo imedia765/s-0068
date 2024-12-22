@@ -1,14 +1,13 @@
-import { Link } from "react-router-dom";
-import { ThemeToggle } from "./ThemeToggle";
 import { useState, useEffect } from "react";
 import { supabase } from "../integrations/supabase/client";
 import { useToast } from "./ui/use-toast";
-import { DesktopNav } from "./navigation/DesktopNav";
+import { ThemeToggle } from "./ThemeToggle";
+import { NavLogo } from "./navigation/NavLogo";
+import { NavLinks } from "./navigation/NavLinks";
+import { AuthButtons } from "./navigation/AuthButtons";
 import { MobileNav } from "./navigation/MobileNav";
-import { Link2Icon, InfoIcon, Stethoscope } from "lucide-react";
 
 export function NavigationMenu() {
-  const [open, setOpen] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
@@ -16,7 +15,6 @@ export function NavigationMenu() {
   useEffect(() => {
     const checkSession = async () => {
       try {
-        console.log("Checking session...");
         const { data: { session }, error } = await supabase.auth.getSession();
         
         if (error) {
@@ -26,21 +24,7 @@ export function NavigationMenu() {
           return;
         }
 
-        if (!session) {
-          console.log("No active session found");
-          const { data: { session: refreshedSession }, error: refreshError } = 
-            await supabase.auth.refreshSession();
-          
-          if (refreshError) {
-            console.error("Session refresh error:", refreshError);
-            setIsLoggedIn(false);
-          } else {
-            setIsLoggedIn(!!refreshedSession);
-          }
-        } else {
-          console.log("Active session found");
-          setIsLoggedIn(true);
-        }
+        setIsLoggedIn(!!session);
       } catch (error) {
         console.error("Session check failed:", error);
         setIsLoggedIn(false);
@@ -57,7 +41,6 @@ export function NavigationMenu() {
       if (event === "SIGNED_IN" && session) {
         setIsLoggedIn(true);
         try {
-          // First try to get the member data since we're using a temp email
           const { data: memberData, error: memberError } = await supabase
             .from('members')
             .select('full_name, email')
@@ -69,24 +52,7 @@ export function NavigationMenu() {
             throw memberError;
           }
 
-          if (memberData) {
-            const userName = memberData.full_name || memberData.email || 'User';
-            toast({
-              title: "Signed in successfully",
-              description: `Welcome back, ${userName}!`,
-              duration: 3000,
-            });
-            return;
-          }
-
-          // If no member data, try profiles table as fallback
-          const { data: profileData } = await supabase
-            .from('profiles')
-            .select('full_name, email')
-            .eq('id', session.user.id)
-            .maybeSingle();
-
-          const userName = profileData?.full_name || profileData?.email || 'User';
+          const userName = memberData?.full_name || memberData?.email || 'User';
           toast({
             title: "Signed in successfully",
             description: `Welcome back, ${userName}!`,
@@ -107,12 +73,6 @@ export function NavigationMenu() {
           description: "Come back soon!",
           duration: 3000,
         });
-      } else if (event === "TOKEN_REFRESHED") {
-        console.log("Token refreshed successfully");
-        setIsLoggedIn(true);
-      } else if (event === "USER_UPDATED") {
-        console.log("User data updated");
-        setIsLoggedIn(true);
       }
     });
 
@@ -151,14 +111,8 @@ export function NavigationMenu() {
     return (
       <nav className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-50">
         <div className="container flex h-14 items-center justify-between">
-          <Link to="/" className="flex items-center space-x-2">
-            <span className="text-xl font-bold bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent">
-              PWA Burton
-            </span>
-          </Link>
-          <div className="flex items-center space-x-2">
-            <ThemeToggle />
-          </div>
+          <NavLogo />
+          <ThemeToggle />
         </div>
       </nav>
     );
@@ -168,45 +122,27 @@ export function NavigationMenu() {
     <nav className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-50">
       <div className="container flex h-14 items-center justify-between">
         <div className="flex items-center space-x-4">
-          <Link to="/" className="flex items-center space-x-2">
-            <span className="text-xl font-bold bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent">
-              PWA Burton
-            </span>
-          </Link>
-          <div className="hidden md:flex items-center space-x-4">
-            <Link 
-              to="/terms" 
-              className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors inline-flex items-center gap-1"
-            >
-              <Link2Icon className="h-4 w-4" />
-              Terms
-            </Link>
-            <Link 
-              to="/collector-responsibilities" 
-              className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors inline-flex items-center gap-1"
-            >
-              <InfoIcon className="h-4 w-4" />
-              Collector Info
-            </Link>
-            <Link 
-              to="/medical-examiner-process" 
-              className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors inline-flex items-center gap-1"
-            >
-              <Stethoscope className="h-4 w-4" />
-              Medical Process
-            </Link>
-          </div>
+          <NavLogo />
+          <NavLinks />
         </div>
 
-        <DesktopNav isLoggedIn={isLoggedIn} handleLogout={handleLogout} />
-        
+        {/* Desktop Navigation */}
+        <div className="hidden md:flex items-center space-x-2">
+          <AuthButtons isLoggedIn={isLoggedIn} handleLogout={handleLogout} />
+          <ThemeToggle />
+        </div>
+
+        {/* Mobile Navigation */}
         <div className="flex items-center space-x-2 md:hidden">
+          <AuthButtons 
+            isLoggedIn={isLoggedIn} 
+            handleLogout={handleLogout} 
+            className="mr-2"
+          />
           <ThemeToggle />
           <MobileNav 
             isLoggedIn={isLoggedIn} 
-            handleLogout={handleLogout} 
-            open={open} 
-            setOpen={setOpen}
+            handleLogout={handleLogout}
           />
         </div>
       </div>

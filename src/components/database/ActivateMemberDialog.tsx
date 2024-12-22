@@ -69,7 +69,7 @@ export function ActivateMemberDialog({
       // Get collector details
       const { data: collector, error: collectorError } = await supabase
         .from('collectors')
-        .select('*')  // Changed from just 'name' to get all collector details
+        .select('*')
         .eq('id', selectedCollectorId)
         .single();
 
@@ -77,27 +77,49 @@ export function ActivateMemberDialog({
         throw new Error('Selected collector not found');
       }
 
-      // Update member with collector and status
-      const { data: updatedMember, error: updateError } = await supabase
+      // First update member with collector_id only to trigger member number generation
+      const { error: updateError } = await supabase
         .from('members')
         .update({ 
           collector_id: selectedCollectorId,
+          status: 'pending'
+        })
+        .eq('id', member.id);
+
+      if (updateError) {
+        console.error('Error updating member collector:', updateError);
+        throw updateError;
+      }
+
+      // Now fetch the updated member to get the generated member number
+      const { data: updatedMember, error: fetchError } = await supabase
+        .from('members')
+        .select('*')
+        .eq('id', member.id)
+        .single();
+
+      if (fetchError) {
+        console.error('Error fetching updated member:', fetchError);
+        throw fetchError;
+      }
+
+      if (!updatedMember.member_number) {
+        throw new Error('Member number was not generated');
+      }
+
+      // Finally update the member with collector name and active status
+      const { error: finalUpdateError } = await supabase
+        .from('members')
+        .update({ 
           collector: collector.name,
           status: 'active',
           updated_at: new Date().toISOString()
         })
-        .eq('id', member.id)
-        .select()
-        .single();
+        .eq('id', member.id);
 
-      if (updateError) {
-        console.error('Error updating member:', updateError);
-        throw updateError;
-      }
-
-      // Verify the update was successful
-      if (!updatedMember?.member_number) {
-        throw new Error('Member number was not generated');
+      if (finalUpdateError) {
+        console.error('Error updating member status:', finalUpdateError);
+        throw finalUpdateError;
       }
 
       toast({
@@ -111,7 +133,7 @@ export function ActivateMemberDialog({
       console.error('Error activating member:', error);
       toast({
         title: "Error",
-        description: "Failed to activate member. Please try again.",
+        description: error instanceof Error ? error.message : "Failed to activate member. Please try again.",
         variant: "destructive"
       });
     } finally {

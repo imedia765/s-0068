@@ -45,6 +45,12 @@ export const useAuthStateHandler = (setIsLoggedIn: (value: boolean) => void) => 
     const handleAuthError = async (error: any) => {
       console.error("Auth error occurred:", error);
       
+      // Don't sign out or show error for invalid email format
+      if (error.message?.includes('email_address_invalid')) {
+        console.log("Ignoring invalid email format error");
+        return;
+      }
+      
       // Clear any stale auth data
       await supabase.auth.signOut();
       setIsLoggedIn(false);

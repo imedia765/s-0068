@@ -14,60 +14,29 @@ export function NavigationMenu() {
 
   useEffect(() => {
     const checkSession = async () => {
-      try {
-        const { data: { session }, error } = await supabase.auth.getSession();
-        
-        if (error) {
-          console.error("Session check error:", error);
-          setIsLoggedIn(false);
-          setLoading(false);
-          return;
-        }
-
-        setIsLoggedIn(!!session);
-      } catch (error) {
-        console.error("Session check failed:", error);
+      const { data: { session }, error } = await supabase.auth.getSession();
+      if (error) {
+        console.error("Session check error:", error);
         setIsLoggedIn(false);
-      } finally {
-        setLoading(false);
+      } else {
+        setIsLoggedIn(!!session);
       }
+      setLoading(false);
     };
 
     checkSession();
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       console.log("Auth state changed:", event, !!session);
+      setIsLoggedIn(!!session);
       
-      if (event === "SIGNED_IN" && session) {
-        setIsLoggedIn(true);
-        try {
-          const { data: memberData, error: memberError } = await supabase
-            .from('members')
-            .select('full_name, email')
-            .eq('auth_user_id', session.user.id)
-            .maybeSingle();
-
-          if (memberError) {
-            console.error("Error fetching member data:", memberError);
-            throw memberError;
-          }
-
-          const userName = memberData?.full_name || memberData?.email || 'User';
-          toast({
-            title: "Signed in successfully",
-            description: `Welcome back, ${userName}!`,
-            duration: 3000,
-          });
-        } catch (error) {
-          console.error("Error fetching user data:", error);
-          toast({
-            title: "Signed in successfully",
-            description: "Welcome back!",
-            duration: 3000,
-          });
-        }
+      if (event === "SIGNED_IN") {
+        toast({
+          title: "Signed in successfully",
+          description: "Welcome back!",
+          duration: 3000,
+        });
       } else if (event === "SIGNED_OUT") {
-        setIsLoggedIn(false);
         toast({
           title: "Logged out successfully",
           description: "Come back soon!",
@@ -76,31 +45,18 @@ export function NavigationMenu() {
       }
     });
 
-    return () => {
-      subscription.unsubscribe();
-    };
+    return () => subscription.unsubscribe();
   }, [toast]);
 
   const handleLogout = async () => {
     try {
       const { error } = await supabase.auth.signOut();
-      if (error) {
-        console.error("Logout error:", error);
-        toast({
-          title: "Logout failed",
-          description: error.message,
-          variant: "destructive",
-          duration: 3000,
-        });
-        return;
-      }
-      
-      setIsLoggedIn(false);
+      if (error) throw error;
     } catch (error) {
       console.error("Logout error:", error);
       toast({
         title: "Logout failed",
-        description: "An unexpected error occurred",
+        description: error instanceof Error ? error.message : "An unexpected error occurred",
         variant: "destructive",
         duration: 3000,
       });
@@ -133,17 +89,9 @@ export function NavigationMenu() {
         </div>
 
         {/* Mobile Navigation */}
-        <div className="flex items-center space-x-2 md:hidden">
-          <AuthButtons 
-            isLoggedIn={isLoggedIn} 
-            handleLogout={handleLogout} 
-            className="mr-2"
-          />
+        <div className="flex md:hidden items-center space-x-2">
           <ThemeToggle />
-          <MobileNav 
-            isLoggedIn={isLoggedIn} 
-            handleLogout={handleLogout}
-          />
+          <MobileNav isLoggedIn={isLoggedIn} handleLogout={handleLogout} />
         </div>
       </div>
     </nav>

@@ -57,21 +57,43 @@ export function NavigationMenu() {
       if (event === "SIGNED_IN" && session) {
         setIsLoggedIn(true);
         try {
-          const { data: userProfile } = await supabase
+          // First try to get the member data since we're using a temp email
+          const { data: memberData, error: memberError } = await supabase
+            .from('members')
+            .select('full_name, email')
+            .eq('auth_user_id', session.user.id)
+            .maybeSingle();
+
+          if (memberError) {
+            console.error("Error fetching member data:", memberError);
+            throw memberError;
+          }
+
+          if (memberData) {
+            const userName = memberData.full_name || memberData.email || 'User';
+            toast({
+              title: "Signed in successfully",
+              description: `Welcome back, ${userName}!`,
+              duration: 3000,
+            });
+            return;
+          }
+
+          // If no member data, try profiles table as fallback
+          const { data: profileData } = await supabase
             .from('profiles')
             .select('full_name, email')
             .eq('id', session.user.id)
-            .single();
+            .maybeSingle();
 
-          const userName = userProfile?.full_name || userProfile?.email || 'User';
-          
+          const userName = profileData?.full_name || profileData?.email || 'User';
           toast({
             title: "Signed in successfully",
             description: `Welcome back, ${userName}!`,
             duration: 3000,
           });
         } catch (error) {
-          console.error("Error fetching user profile:", error);
+          console.error("Error fetching user data:", error);
           toast({
             title: "Signed in successfully",
             description: "Welcome back!",

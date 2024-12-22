@@ -1,117 +1,193 @@
-import { useEffect } from "react";
 import { Link } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/contexts/AuthContext";
-import { Badge } from "@/components/ui/badge";
-import { UserCircle, Users, Database, MessageSquare, CreditCard, Home } from "lucide-react";
+import { ThemeToggle } from "./ThemeToggle";
+import { useState, useEffect } from "react";
+import { supabase } from "../integrations/supabase/client";
+import { useToast } from "./ui/use-toast";
+import { DesktopNav } from "./navigation/DesktopNav";
+import { MobileNav } from "./navigation/MobileNav";
+import { Link2Icon, InfoIcon, Stethoscope } from "lucide-react";
 
-export const NavigationMenu = () => {
-  const { isLoggedIn } = useAuth();
-
-  const { data: userRole, error: roleError } = useQuery({
-    queryKey: ['userRole'],
-    queryFn: async () => {
-      if (!isLoggedIn) return null;
-      
-      // First get the current user
-      const { data: { user }, error: userError } = await supabase.auth.getUser();
-      
-      if (userError) {
-        console.error("Error getting user:", userError);
-        return null;
-      }
-      
-      if (!user) {
-        console.log("No user found");
-        return null;
-      }
-
-      console.log("Fetching role for user:", user.id);
-      
-      // Then fetch their profile using their ID
-      const { data: profile, error: profileError } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('id', user.id)
-        .maybeSingle();
-
-      if (profileError) {
-        console.error("Error fetching profile:", profileError);
-        return null;
-      }
-
-      console.log("Profile data:", profile);
-      return profile?.role || null;
-    },
-    enabled: isLoggedIn,
-  });
+export function NavigationMenu() {
+  const [open, setOpen] = useState(false);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const { toast } = useToast();
 
   useEffect(() => {
-    if (roleError) {
-      console.error("Error fetching user role:", roleError);
+    const checkSession = async () => {
+      try {
+        console.log("Checking session...");
+        const { data: { session }, error } = await supabase.auth.getSession();
+        
+        if (error) {
+          console.error("Session check error:", error);
+          setIsLoggedIn(false);
+          setLoading(false);
+          return;
+        }
+
+        if (!session) {
+          console.log("No active session found");
+          const { data: { session: refreshedSession }, error: refreshError } = 
+            await supabase.auth.refreshSession();
+          
+          if (refreshError) {
+            console.error("Session refresh error:", refreshError);
+            setIsLoggedIn(false);
+          } else {
+            setIsLoggedIn(!!refreshedSession);
+          }
+        } else {
+          console.log("Active session found");
+          setIsLoggedIn(true);
+        }
+      } catch (error) {
+        console.error("Session check failed:", error);
+        setIsLoggedIn(false);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    checkSession();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      console.log("Auth state changed:", event, !!session);
+      
+      if (event === "SIGNED_IN" && session) {
+        setIsLoggedIn(true);
+        try {
+          const { data: userProfile } = await supabase
+            .from('profiles')
+            .select('full_name, email')
+            .eq('id', session.user.id)
+            .single();
+
+          const userName = userProfile?.full_name || userProfile?.email || 'User';
+          
+          toast({
+            title: "Signed in successfully",
+            description: `Welcome back, ${userName}!`,
+            duration: 3000,
+          });
+        } catch (error) {
+          console.error("Error fetching user profile:", error);
+          toast({
+            title: "Signed in successfully",
+            description: "Welcome back!",
+            duration: 3000,
+          });
+        }
+      } else if (event === "SIGNED_OUT") {
+        setIsLoggedIn(false);
+        toast({
+          title: "Logged out successfully",
+          description: "Come back soon!",
+          duration: 3000,
+        });
+      } else if (event === "TOKEN_REFRESHED") {
+        console.log("Token refreshed successfully");
+        setIsLoggedIn(true);
+      } else if (event === "USER_UPDATED") {
+        console.log("User data updated");
+        setIsLoggedIn(true);
+      }
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, [toast]);
+
+  const handleLogout = async () => {
+    try {
+      const { error } = await supabase.auth.signOut();
+      if (error) {
+        console.error("Logout error:", error);
+        toast({
+          title: "Logout failed",
+          description: error.message,
+          variant: "destructive",
+          duration: 3000,
+        });
+        return;
+      }
+      
+      setIsLoggedIn(false);
+    } catch (error) {
+      console.error("Logout error:", error);
+      toast({
+        title: "Logout failed",
+        description: "An unexpected error occurred",
+        variant: "destructive",
+        duration: 3000,
+      });
     }
-  }, [roleError]);
+  };
+
+  if (loading) {
+    return (
+      <nav className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-50">
+        <div className="container flex h-14 items-center justify-between">
+          <Link to="/" className="flex items-center space-x-2">
+            <span className="text-xl font-bold bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent">
+              PWA Burton
+            </span>
+          </Link>
+          <div className="flex items-center space-x-2">
+            <ThemeToggle />
+          </div>
+        </div>
+      </nav>
+    );
+  }
 
   return (
-    <nav className="bg-white shadow-sm">
-      <div className="container mx-auto px-4">
-        <div className="flex items-center justify-between h-16">
-          <div className="flex items-center space-x-8">
-            <Link to="/" className="text-gray-800 hover:text-gray-600 flex items-center space-x-2">
-              <Home className="h-5 w-5" />
-              <span>Home</span>
+    <nav className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-50">
+      <div className="container flex h-14 items-center justify-between">
+        <div className="flex items-center space-x-4">
+          <Link to="/" className="flex items-center space-x-2">
+            <span className="text-xl font-bold bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent">
+              PWA Burton
+            </span>
+          </Link>
+          <div className="hidden md:flex items-center space-x-4">
+            <Link 
+              to="/terms" 
+              className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors inline-flex items-center gap-1"
+            >
+              <Link2Icon className="h-4 w-4" />
+              Terms
             </Link>
-            
-            {isLoggedIn && (
-              <>
-                <Link to="/admin/profile" className="text-gray-800 hover:text-gray-600 flex items-center space-x-2">
-                  <UserCircle className="h-5 w-5" />
-                  <span>Profile</span>
-                </Link>
-                <Link to="/admin/members" className="text-gray-800 hover:text-gray-600 flex items-center space-x-2">
-                  <Users className="h-5 w-5" />
-                  <span>Members</span>
-                </Link>
-                <Link to="/admin/collectors" className="text-gray-800 hover:text-gray-600 flex items-center space-x-2">
-                  <Users className="h-5 w-5" />
-                  <span>Collectors</span>
-                </Link>
-                <Link to="/admin/finance" className="text-gray-800 hover:text-gray-600 flex items-center space-x-2">
-                  <CreditCard className="h-5 w-5" />
-                  <span>Finance</span>
-                </Link>
-                <Link to="/admin/support" className="text-gray-800 hover:text-gray-600 flex items-center space-x-2">
-                  <MessageSquare className="h-5 w-5" />
-                  <span>Support</span>
-                </Link>
-                <Link to="/admin/database" className="text-gray-800 hover:text-gray-600 flex items-center space-x-2">
-                  <Database className="h-5 w-5" />
-                  <span>Database</span>
-                </Link>
-              </>
-            )}
+            <Link 
+              to="/collector-responsibilities" 
+              className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors inline-flex items-center gap-1"
+            >
+              <InfoIcon className="h-4 w-4" />
+              Collector Info
+            </Link>
+            <Link 
+              to="/medical-examiner-process" 
+              className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors inline-flex items-center gap-1"
+            >
+              <Stethoscope className="h-4 w-4" />
+              Medical Process
+            </Link>
           </div>
-          
-          <div className="flex items-center space-x-4">
-            {isLoggedIn ? (
-              <div className="flex items-center space-x-2">
-                {userRole && (
-                  <Badge variant="outline" className="capitalize">
-                    {userRole}
-                  </Badge>
-                )}
-              </div>
-            ) : (
-              <div className="flex items-center space-x-4">
-                <Link to="/login" className="text-gray-800 hover:text-gray-600">
-                  Login
-                </Link>
-              </div>
-            )}
-          </div>
+        </div>
+
+        <DesktopNav isLoggedIn={isLoggedIn} handleLogout={handleLogout} />
+        
+        <div className="flex items-center space-x-2 md:hidden">
+          <ThemeToggle />
+          <MobileNav 
+            isLoggedIn={isLoggedIn} 
+            handleLogout={handleLogout} 
+            open={open} 
+            setOpen={setOpen}
+          />
         </div>
       </div>
     </nav>
   );
-};
+}

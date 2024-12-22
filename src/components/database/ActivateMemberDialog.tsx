@@ -63,7 +63,7 @@ export function ActivateMemberDialog({
     }
 
     setIsLoading(true);
-    console.log('Activating member:', member.id, 'with collector:', selectedCollectorId);
+    console.log('Starting member activation process:', member.id, 'with collector:', selectedCollectorId);
 
     try {
       // Get collector details
@@ -77,21 +77,23 @@ export function ActivateMemberDialog({
         throw new Error('Selected collector not found');
       }
 
-      // First update member with collector_id only to trigger member number generation
+      // Update member with collector details to trigger member number generation
       const { error: updateError } = await supabase
         .from('members')
         .update({ 
           collector_id: selectedCollectorId,
-          status: 'pending'
+          collector: collector.name,
+          status: 'active',
+          updated_at: new Date().toISOString()
         })
         .eq('id', member.id);
 
       if (updateError) {
-        console.error('Error updating member collector:', updateError);
+        console.error('Error updating member:', updateError);
         throw updateError;
       }
 
-      // Now fetch the updated member to get the generated member number
+      // Fetch the updated member to confirm member number generation
       const { data: updatedMember, error: fetchError } = await supabase
         .from('members')
         .select('*')
@@ -105,21 +107,6 @@ export function ActivateMemberDialog({
 
       if (!updatedMember.member_number) {
         throw new Error('Member number was not generated');
-      }
-
-      // Finally update the member with collector name and active status
-      const { error: finalUpdateError } = await supabase
-        .from('members')
-        .update({ 
-          collector: collector.name,
-          status: 'active',
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', member.id);
-
-      if (finalUpdateError) {
-        console.error('Error updating member status:', finalUpdateError);
-        throw finalUpdateError;
       }
 
       toast({

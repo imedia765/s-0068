@@ -18,10 +18,11 @@ export const useAuthStateHandler = (setIsLoggedIn: (value: boolean) => void) => 
         if (error) {
           console.error("Session check error:", error);
           setIsLoggedIn(false);
+          // Clear the session on error
+          await supabase.auth.signOut();
           return;
         }
         
-        // Only consider logged in if we have both tokens
         if (session?.access_token && session?.refresh_token) {
           console.log("Active session found with valid tokens");
           setIsLoggedIn(true);
@@ -33,6 +34,8 @@ export const useAuthStateHandler = (setIsLoggedIn: (value: boolean) => void) => 
         } else {
           console.log("No valid session found", { session });
           setIsLoggedIn(false);
+          // Clear any invalid session
+          await supabase.auth.signOut();
           
           // Only redirect to login if we're not already there or on register
           if (window.location.pathname !== "/login" && window.location.pathname !== "/register") {
@@ -42,6 +45,8 @@ export const useAuthStateHandler = (setIsLoggedIn: (value: boolean) => void) => 
       } catch (error) {
         console.error("Session check failed:", error);
         setIsLoggedIn(false);
+        // Clear session on error
+        await supabase.auth.signOut();
         if (window.location.pathname !== "/login" && window.location.pathname !== "/register") {
           navigate("/login");
         }
@@ -67,6 +72,7 @@ export const useAuthStateHandler = (setIsLoggedIn: (value: boolean) => void) => 
           } else {
             console.log("Sign in event but invalid tokens");
             setIsLoggedIn(false);
+            await supabase.auth.signOut();
             navigate("/login");
           }
           break;
@@ -84,6 +90,7 @@ export const useAuthStateHandler = (setIsLoggedIn: (value: boolean) => void) => 
           } else {
             console.log("Token refresh failed - invalid tokens");
             setIsLoggedIn(false);
+            await supabase.auth.signOut();
             navigate("/login");
           }
           break;
@@ -94,6 +101,7 @@ export const useAuthStateHandler = (setIsLoggedIn: (value: boolean) => void) => 
             setIsLoggedIn(true);
           } else {
             setIsLoggedIn(false);
+            await supabase.auth.signOut();
             navigate("/login");
           }
           break;
@@ -104,6 +112,8 @@ export const useAuthStateHandler = (setIsLoggedIn: (value: boolean) => void) => 
             setIsLoggedIn(true);
           } else {
             setIsLoggedIn(false);
+            // Clear any invalid session
+            await supabase.auth.signOut();
             if (window.location.pathname !== "/login" && window.location.pathname !== "/register") {
               navigate("/login");
             }

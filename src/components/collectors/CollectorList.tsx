@@ -1,5 +1,7 @@
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { CollectorCard } from "./CollectorCard";
+import { useToast } from "@/components/ui/use-toast";
+import { useEffect, useState } from "react";
 
 interface CollectorListProps {
   collectors: any[];
@@ -20,10 +22,69 @@ export function CollectorList({
   isLoading,
   searchTerm,
 }: CollectorListProps) {
-  const filteredCollectors = collectors?.filter(collector =>
-    collector.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    collector.number.includes(searchTerm)
-  ) ?? [];
+  const { toast } = useToast();
+  const [checkedCollectors, setCheckedCollectors] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    // Only run checks for collectors we haven't checked yet
+    collectors?.forEach(collector => {
+      const collectorKey = `${collector.prefix}${collector.number}`;
+      if (!checkedCollectors.has(collectorKey)) {
+        const totalMembers = collector.members?.length || 0;
+        
+        // Check for known collector member counts
+        const expectedCounts: { [key: string]: number } = {
+          'MT05': 168, // Mohammad Tanveer
+          'SH09': 90,  // Sahil Hussain
+        };
+
+        if (expectedCounts[collectorKey] && totalMembers !== expectedCounts[collectorKey]) {
+          console.warn(
+            `${collectorKey} - ${collector.name} has ${totalMembers} total members. ` +
+            `Expected: ${expectedCounts[collectorKey]}, Got: ${totalMembers}. ` +
+            `Missing: ${expectedCounts[collectorKey] - totalMembers} members`
+          );
+
+          toast({
+            title: "Member Count Mismatch",
+            description: `${collector.name} (${collectorKey}) is missing ${expectedCounts[collectorKey] - totalMembers} members`,
+            variant: "destructive",
+          });
+
+          // Mark this collector as checked
+          setCheckedCollectors(prev => new Set([...prev, collectorKey]));
+        }
+      }
+    });
+
+    // Log total members for verification
+    const totalMembers = collectors?.reduce((total, collector) => {
+      return total + (collector.members?.length || 0);
+    }, 0) || 0;
+    
+    console.log(`Total members across all collectors: ${totalMembers}`);
+    
+    // Log individual collector counts for debugging
+    collectors?.forEach(collector => {
+      const activeMembers = collector.members?.filter(m => m.status === 'active' || m.status === null).length || 0;
+      const inactiveMembers = collector.members?.filter(m => m.status === 'inactive').length || 0;
+      const totalCollectorMembers = collector.members?.length || 0;
+      
+      console.log(`Collector ${collector.name}:`);
+      console.log(`- Total members: ${totalCollectorMembers}`);
+      console.log(`- Active members: ${activeMembers}`);
+      console.log(`- Inactive members: ${inactiveMembers}`);
+    });
+
+  }, [collectors, toast]);
+
+  // Filter collectors based on search term
+  const filteredCollectors = collectors?.filter(collector => {
+    const matchesName = collector.name.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesNumber = collector.number.includes(searchTerm);
+    const matchesPrefix = collector.prefix.toLowerCase().includes(searchTerm.toLowerCase());
+    return matchesName || matchesNumber || matchesPrefix;
+  }) ?? [];
 
   if (isLoading) {
     return (

@@ -16,11 +16,11 @@ export default function Login() {
     
     const formData = new FormData(e.currentTarget);
     const memberId = formData.get('memberId') as string;
-    const password = formData.get('password') as string;
     
     try {
       console.log("Attempting member ID login with:", { memberId });
-      await handleMemberIdLogin(memberId, password, navigate);
+      await handleMemberIdLogin(memberId);
+      navigate("/admin/profile");
     } catch (error) {
       console.error("Member ID login error:", error);
       toast({

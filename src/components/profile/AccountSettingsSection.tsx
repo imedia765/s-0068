@@ -40,10 +40,10 @@ export const AccountSettingsSection = ({ memberData }: AccountSettingsSectionPro
   };
 
   const handleUpdateProfile = async () => {
-    if (!memberData?.id) {
+    if (!memberData?.member_number) {
       toast({
         title: "Error",
-        description: "Member ID not found",
+        description: "Member number not found",
         variant: "destructive",
       });
       return;
@@ -77,7 +77,7 @@ export const AccountSettingsSection = ({ memberData }: AccountSettingsSectionPro
           updated_at: new Date().toISOString(),
           profile_updated: true
         })
-        .eq('id', memberData.id)
+        .eq('member_number', memberData.member_number)
         .eq('auth_user_id', session.user.id); // Ensure we're updating our own record
 
       if (memberError) throw memberError;

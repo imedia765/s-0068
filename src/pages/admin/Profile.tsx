@@ -15,6 +15,7 @@ export default function Profile() {
   const navigate = useNavigate();
   const [memberNumber, setMemberNumber] = useState<string | null>(null);
 
+  // Check authentication and get member number
   useEffect(() => {
     const checkAuth = async () => {
       const { data: { session } } = await supabase.auth.getSession();
@@ -42,6 +43,7 @@ export default function Profile() {
 
     checkAuth();
 
+    // Set up auth state change listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (!session) {
         navigate("/login");

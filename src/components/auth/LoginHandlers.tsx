@@ -12,12 +12,8 @@ export async function handleMemberIdLogin(memberId: string, password: string, na
       throw new Error("Member ID not found");
     }
     
-    // Use the email stored in the database or generate a temporary one
-    const email = member.email || `${member.member_number.toLowerCase()}@temp.pwaburton.org`;
-    
-    if (!email) {
-      throw new Error("Unable to determine email for member");
-    }
+    // Use the member number for authentication
+    const email = `${member.member_number.toLowerCase()}@temp.pwaburton.org`;
     
     console.log("Attempting member ID login with:", { memberId, email });
 

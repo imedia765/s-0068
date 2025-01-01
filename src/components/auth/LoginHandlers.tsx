@@ -43,7 +43,7 @@ export async function handleMemberIdLogin(memberId: string, password: string, na
       throw new Error("A password reset link has been sent to your email.");
     }
 
-    // Try to sign in with member ID as password
+    // Try to sign in with member number as password
     const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
       email,
       password: member.member_number // Use member_number as initial password

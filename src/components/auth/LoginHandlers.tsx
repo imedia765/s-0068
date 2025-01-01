@@ -12,11 +12,11 @@ export async function handleMemberIdLogin(memberId: string, password: string, na
       throw new Error("Member ID not found");
     }
     
-    // Use the email stored in the database
-    const email = member.email;
+    // Use the email stored in the database or generate a temporary one
+    const email = member.email || `${member.member_number.toLowerCase()}@temp.pwaburton.org`;
     
     if (!email) {
-      throw new Error("No email associated with this member ID");
+      throw new Error("Unable to determine email for member");
     }
     
     console.log("Attempting member ID login with:", { memberId, email });
@@ -58,7 +58,8 @@ export async function handleMemberIdLogin(memberId: string, password: string, na
           .from('members')
           .update({ 
             auth_user_id: signInData.user.id,
-            email_verified: true
+            email_verified: true,
+            email: email // Save the email we used
           })
           .eq('id', member.id)
           .single();
@@ -99,12 +100,13 @@ export async function handleMemberIdLogin(memberId: string, password: string, na
       throw new Error("Failed to create account");
     }
 
-    // Update member record with auth user id
+    // Update member record with auth user id and email
     const { error: updateError } = await supabase
       .from('members')
       .update({ 
         auth_user_id: signUpData.user.id,
-        email_verified: true
+        email_verified: true,
+        email: email
       })
       .eq('id', member.id)
       .single();

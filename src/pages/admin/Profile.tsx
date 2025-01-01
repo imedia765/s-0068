@@ -23,26 +23,20 @@ export default function Profile() {
         return;
       }
 
-      // Get member number from the members table using auth user id
-      const { data: memberData, error } = await supabase
-        .from('members')
-        .select('member_number')
-        .eq('auth_user_id', session.user.id)
-        .maybeSingle();
-
-      if (error) {
-        console.error('Error fetching member:', error);
-        toast({
-          title: "Error",
-          description: "Could not fetch member data",
-          variant: "destructive",
-        });
+      const userEmail = session.user.email;
+      if (!userEmail) {
+        console.error('No email found in session');
         return;
       }
 
-      if (memberData?.member_number) {
-        console.log('Found member number:', memberData.member_number);
-        setMemberNumber(memberData.member_number);
+      // Extract member number from email (assuming format: memberNumber@temp.pwaburton.org)
+      const memberNumberMatch = userEmail.match(/^([^@]+)@temp\.pwaburton\.org$/);
+      if (memberNumberMatch) {
+        const extractedMemberNumber = memberNumberMatch[1].toUpperCase();
+        console.log('Extracted member number:', extractedMemberNumber);
+        setMemberNumber(extractedMemberNumber);
+      } else {
+        console.error('Could not extract member number from email:', userEmail);
       }
     };
 
@@ -52,19 +46,13 @@ export default function Profile() {
       if (!session) {
         navigate("/login");
       } else {
-        // Update member number when auth state changes
-        const fetchMemberNumber = async () => {
-          const { data: memberData, error } = await supabase
-            .from('members')
-            .select('member_number')
-            .eq('auth_user_id', session.user.id)
-            .maybeSingle();
-
-          if (!error && memberData?.member_number) {
-            setMemberNumber(memberData.member_number);
+        const userEmail = session.user.email;
+        if (userEmail) {
+          const memberNumberMatch = userEmail.match(/^([^@]+)@temp\.pwaburton\.org$/);
+          if (memberNumberMatch) {
+            setMemberNumber(memberNumberMatch[1].toUpperCase());
           }
-        };
-        fetchMemberNumber();
+        }
       }
     });
 
@@ -82,7 +70,16 @@ export default function Profile() {
       
       const { data, error } = await supabase
         .from('members')
-        .select('*, family_members(*)')
+        .select(`
+          *,
+          family_members (*),
+          collector:collectors (
+            id,
+            name,
+            email,
+            phone
+          )
+        `)
         .eq('member_number', memberNumber)
         .maybeSingle();
 

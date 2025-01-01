@@ -12,10 +12,9 @@ import { supabase } from "../integrations/supabase/client";
 import { useToast } from "./ui/use-toast";
 import { UserRole } from "@/types/roles";
 
-// Define menu items with role restrictions
 const menuItems = [
-  { icon: LayoutDashboard, label: "Dashboard", to: "/admin", roles: ["admin", "collector"] }, // Added collector
-  { icon: Users, label: "Members", to: "/admin/members", roles: ["admin", "collector"] }, // Added collector
+  { icon: LayoutDashboard, label: "Dashboard", to: "/admin", roles: ["admin", "collector"] },
+  { icon: Users, label: "Members", to: "/admin/members", roles: ["admin", "collector"] },
   { icon: UserCheck, label: "Collectors", to: "/admin/collectors", roles: ["admin"] },
   { icon: ClipboardList, label: "Registrations", to: "/admin/registrations", roles: ["admin"] },
   { icon: Database, label: "Database", to: "/admin/database", roles: ["admin"] },
@@ -50,26 +49,50 @@ export function AdminLayout() {
           return;
         }
 
-        // Get user role from profiles table
-        const { data: profile, error: profileError } = await supabase
-          .from('profiles')
-          .select('role')
-          .eq('id', session.user.id)
-          .single();
+        // Get user role from profiles table with retry logic
+        let retryCount = 0;
+        const maxRetries = 3;
+        let profile = null;
+        
+        while (retryCount < maxRetries && !profile) {
+          const { data: profileData, error: profileError } = await supabase
+            .from('profiles')
+            .select('role')
+            .eq('id', session.user.id)
+            .single();
 
-        if (profileError) {
-          console.error("Profile fetch error:", profileError);
+          if (profileError) {
+            console.error("Profile fetch error:", profileError);
+            retryCount++;
+            if (retryCount < maxRetries) {
+              await new Promise(resolve => setTimeout(resolve, 1000 * retryCount));
+              continue;
+            }
+            setIsLoggedIn(false);
+            navigate("/login");
+            return;
+          }
+
+          profile = profileData;
+          break;
+        }
+
+        if (!profile) {
+          console.error("Could not fetch profile after retries");
           setIsLoggedIn(false);
           navigate("/login");
           return;
         }
 
+        console.log("User role fetched:", profile.role);
         setUserRole(profile.role);
         setIsLoggedIn(true);
 
         // Check if current route is allowed for user's role
         const currentPath = window.location.pathname;
-        const allowedPaths = menuItems.filter(item => item.roles.includes(profile.role)).map(item => item.to);
+        const allowedPaths = menuItems
+          .filter(item => item.roles.includes(profile.role))
+          .map(item => item.to);
         
         if (!allowedPaths.includes(currentPath) && currentPath !== "/admin/profile") {
           console.log("Access denied to path:", currentPath);

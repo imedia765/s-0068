@@ -20,15 +20,10 @@ export const useProfile = () => {
 
       console.log("Fetching profile for user:", session.user.id);
 
-      // First try to get profile from profiles table
+      // First get the profile
       const { data: profileData, error: profileError } = await supabase
         .from("profiles")
-        .select(`
-          *,
-          members_roles (
-            role
-          )
-        `)
+        .select("*")
         .eq("auth_user_id", session.user.id)
         .single();
 
@@ -85,7 +80,24 @@ export const useProfile = () => {
         }
       }
 
-      console.log("Found profile:", profileData);
+      // Now get the role in a separate query
+      if (profileData) {
+        const { data: roleData } = await supabase
+          .from("members_roles")
+          .select("role")
+          .eq("profile_id", profileData.id)
+          .single();
+
+        // Combine profile and role data
+        const profileWithRole = {
+          ...profileData,
+          members_roles: roleData
+        };
+
+        console.log("Found profile with role:", profileWithRole);
+        return profileWithRole as Profile;
+      }
+
       return profileData as Profile;
     },
     retry: 1,

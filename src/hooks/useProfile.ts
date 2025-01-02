@@ -25,7 +25,7 @@ export const useProfile = () => {
         .from("profiles")
         .select("*")
         .eq("auth_user_id", session.user.id)
-        .single();
+        .maybeSingle();
 
       if (profileError) {
         console.error("Profile fetch error:", profileError);
@@ -39,7 +39,7 @@ export const useProfile = () => {
           .from("members")
           .select("*")
           .eq("auth_user_id", session.user.id)
-          .single();
+          .maybeSingle();
 
         if (memberError) {
           console.error("Member fetch error:", memberError);
@@ -86,7 +86,7 @@ export const useProfile = () => {
           .from("members_roles")
           .select("role")
           .eq("profile_id", profileData.id)
-          .single();
+          .maybeSingle();
 
         // Combine profile and role data
         const profileWithRole = {

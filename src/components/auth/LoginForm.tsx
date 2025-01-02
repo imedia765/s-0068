@@ -39,7 +39,7 @@ export const LoginForm = () => {
 
       // First try to sign up the user if they don't exist
       const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
-        email: memberData[0].email,
+        email: memberNumber + '@pwa.org', // Using member number as email
         password: memberNumber,
         options: {
           data: {
@@ -58,7 +58,7 @@ export const LoginForm = () => {
 
       // Now sign in with the credentials
       const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
-        email: memberData[0].email,
+        email: memberNumber + '@pwa.org', // Using member number as email
         password: memberNumber,
       });
 

@@ -49,56 +49,61 @@ export const useProfile = () => {
         console.log("Found member data:", memberData);
 
         if (memberData) {
-          // Create a profile from member data
-          const { data: newProfile, error: insertError } = await supabase
-            .from("profiles")
-            .insert({
-              auth_user_id: session.user.id,
-              member_number: memberData.member_number,
-              full_name: memberData.full_name,
-              email: memberData.email,
-              phone: memberData.phone,
-              address: memberData.address,
-              postcode: memberData.postcode,
-              town: memberData.town,
-              status: memberData.status,
-              membership_type: memberData.membership_type,
-              date_of_birth: memberData.date_of_birth,
-              gender: memberData.gender,
-              marital_status: memberData.marital_status
-            })
-            .select()
-            .single();
+          try {
+            // Create a profile from member data
+            const { data: newProfile, error: insertError } = await supabase
+              .from("profiles")
+              .insert({
+                auth_user_id: session.user.id,
+                member_number: memberData.member_number,
+                full_name: memberData.full_name,
+                email: memberData.email,
+                phone: memberData.phone,
+                address: memberData.address,
+                postcode: memberData.postcode,
+                town: memberData.town,
+                status: memberData.status,
+                membership_type: memberData.membership_type,
+                date_of_birth: memberData.date_of_birth,
+                gender: memberData.gender,
+                marital_status: memberData.marital_status
+              })
+              .select()
+              .maybeSingle();
 
-          if (insertError) {
-            console.error("Profile creation error:", insertError);
-            throw insertError;
+            if (insertError) {
+              console.error("Profile creation error:", insertError);
+              throw insertError;
+            }
+
+            console.log("Created and returning new profile:", newProfile);
+            return newProfile as Profile;
+          } catch (error) {
+            console.error("Error creating profile:", error);
+            throw new Error("Failed to create profile from member data");
           }
-
-          console.log("Created and returning new profile:", newProfile);
-          return newProfile as Profile;
         }
+
+        // If no member data found either, return null
+        console.log("No member data found, returning null");
+        return null;
       }
 
       // Now get the role in a separate query
-      if (profileData) {
-        const { data: roleData } = await supabase
-          .from("members_roles")
-          .select("role")
-          .eq("profile_id", profileData.id)
-          .maybeSingle();
+      const { data: roleData } = await supabase
+        .from("members_roles")
+        .select("role")
+        .eq("profile_id", profileData.id)
+        .maybeSingle();
 
-        // Combine profile and role data
-        const profileWithRole = {
-          ...profileData,
-          members_roles: roleData
-        };
+      // Combine profile and role data
+      const profileWithRole = {
+        ...profileData,
+        members_roles: roleData
+      };
 
-        console.log("Found profile with role:", profileWithRole);
-        return profileWithRole as Profile;
-      }
-
-      return profileData as Profile;
+      console.log("Found profile with role:", profileWithRole);
+      return profileWithRole as Profile;
     },
     retry: 1,
     staleTime: 30000, // Cache for 30 seconds

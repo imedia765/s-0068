@@ -20,12 +20,17 @@ export const useProfile = () => {
 
       console.log("Fetching profile for user:", session.user.id);
 
-      // First try to get profile from profiles table using maybeSingle()
+      // First try to get profile from profiles table
       const { data: profileData, error: profileError } = await supabase
         .from("profiles")
-        .select("*")
+        .select(`
+          *,
+          members_roles (
+            role
+          )
+        `)
         .eq("auth_user_id", session.user.id)
-        .maybeSingle();
+        .single();
 
       if (profileError) {
         console.error("Profile fetch error:", profileError);
@@ -39,7 +44,7 @@ export const useProfile = () => {
           .from("members")
           .select("*")
           .eq("auth_user_id", session.user.id)
-          .maybeSingle();
+          .single();
 
         if (memberError) {
           console.error("Member fetch error:", memberError);

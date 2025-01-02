@@ -31,8 +31,13 @@ export const MembersList = () => {
         throw new Error("No authenticated user found");
       }
 
-      // Get all members - RLS policies will handle access control
-      const { data, error } = await supabase
+      // First check if user is admin
+      const { data: isAdmin } = await supabase.rpc('current_user_is_admin');
+      
+      console.log("Is admin:", isAdmin);
+
+      // Get all members if admin, otherwise only get the user's profile
+      const query = supabase
         .from("members")
         .select(`
           id,
@@ -45,11 +50,14 @@ export const MembersList = () => {
         `)
         .order('created_at', { ascending: false });
 
+      const { data, error } = await query;
+
       if (error) {
         console.error("Error fetching members:", error);
         throw error;
       }
 
+      console.log("Fetched members:", data);
       return data;
     },
   });

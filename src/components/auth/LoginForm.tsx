@@ -37,10 +37,29 @@ export const LoginForm = () => {
 
       console.log("Member authenticated:", memberData);
 
-      // Sign in with Supabase Auth using the email from member data
+      // First try to sign up the user if they don't exist
+      const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+        email: memberData[0].email,
+        password: memberNumber,
+        options: {
+          data: {
+            member_number: memberNumber,
+            full_name: memberData[0].full_name,
+            email: memberData[0].email,
+          }
+        }
+      });
+
+      // If sign up fails because user exists, proceed with sign in
+      if (signUpError && signUpError.message !== "User already registered") {
+        console.error("Sign up error:", signUpError);
+        throw new Error('Failed to create account');
+      }
+
+      // Now sign in with the credentials
       const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
         email: memberData[0].email,
-        password: memberNumber, // Using member number as password
+        password: memberNumber,
       });
 
       if (signInError) {

@@ -49,39 +49,34 @@ export const useProfile = () => {
         console.log("Found member data:", memberData);
 
         if (memberData) {
-          try {
-            // Create a profile from member data
-            const { data: newProfile, error: insertError } = await supabase
-              .from("profiles")
-              .insert({
-                auth_user_id: session.user.id,
-                member_number: memberData.member_number,
-                full_name: memberData.full_name,
-                email: memberData.email,
-                phone: memberData.phone,
-                address: memberData.address,
-                postcode: memberData.postcode,
-                town: memberData.town,
-                status: memberData.status,
-                membership_type: memberData.membership_type,
-                date_of_birth: memberData.date_of_birth,
-                gender: memberData.gender,
-                marital_status: memberData.marital_status
-              })
-              .select()
-              .maybeSingle();
+          // Create a profile from member data
+          const { data: newProfile, error: insertError } = await supabase
+            .from("profiles")
+            .upsert({  // Changed from insert to upsert
+              auth_user_id: session.user.id,
+              member_number: memberData.member_number,
+              full_name: memberData.full_name,
+              email: memberData.email,
+              phone: memberData.phone,
+              address: memberData.address,
+              postcode: memberData.postcode,
+              town: memberData.town,
+              status: memberData.status,
+              membership_type: memberData.membership_type,
+              date_of_birth: memberData.date_of_birth,
+              gender: memberData.gender,
+              marital_status: memberData.marital_status
+            })
+            .select()
+            .maybeSingle();
 
-            if (insertError) {
-              console.error("Profile creation error:", insertError);
-              throw insertError;
-            }
-
-            console.log("Created and returning new profile:", newProfile);
-            return newProfile as Profile;
-          } catch (error) {
-            console.error("Error creating profile:", error);
-            throw new Error("Failed to create profile from member data");
+          if (insertError) {
+            console.error("Profile creation error:", insertError);
+            throw insertError;
           }
+
+          console.log("Created and returning new profile:", newProfile);
+          return newProfile as Profile;
         }
 
         // If no member data found either, return null

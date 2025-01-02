@@ -37,10 +37,10 @@ export const LoginForm = () => {
 
       console.log("Member authenticated:", memberData);
 
-      // Sign in with member number and store session
+      // Sign in with Supabase Auth using the email from member data
       const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
-        email: `${memberNumber}@member.com`,
-        password: memberNumber,
+        email: memberData[0].email,
+        password: memberNumber, // Using member number as password
       });
 
       if (signInError) {
@@ -48,15 +48,7 @@ export const LoginForm = () => {
         throw new Error('Failed to sign in');
       }
 
-      // Verify session was created successfully
-      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-      
-      if (sessionError || !session) {
-        console.error("Session error:", sessionError);
-        throw new Error('Failed to establish session');
-      }
-
-      console.log("Session established successfully:", session);
+      console.log("Sign in successful:", signInData);
 
       toast({
         title: "Success",

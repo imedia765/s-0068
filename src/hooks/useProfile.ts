@@ -51,12 +51,24 @@ export const useProfile = () => {
         if (memberData) {
           // Create a profile from member data using our secure RPC function
           const { data: newProfile, error: insertError } = await supabase
-            .rpc('safely_upsert_profile', {
-              p_auth_user_id: session.user.id,
-              p_member_number: memberData.member_number,
-              p_full_name: memberData.full_name,
-              p_email: memberData.email
-            });
+            .from('profiles')
+            .upsert({
+              auth_user_id: session.user.id,
+              member_number: memberData.member_number,
+              full_name: memberData.full_name,
+              email: memberData.email,
+              phone: memberData.phone,
+              address: memberData.address,
+              postcode: memberData.postcode,
+              town: memberData.town,
+              status: memberData.status,
+              membership_type: memberData.membership_type,
+              date_of_birth: memberData.date_of_birth,
+              gender: memberData.gender,
+              marital_status: memberData.marital_status
+            })
+            .select()
+            .single();
 
           if (insertError) {
             console.error("Profile creation error:", insertError);

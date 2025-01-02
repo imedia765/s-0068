@@ -47,10 +47,14 @@ export const MembersList = () => {
           phone,
           collector,
           status
-        `)
-        .order('created_at', { ascending: false });
+        `);
 
-      const { data, error } = await query;
+      // If not admin, filter to only show the user's own profile
+      if (!isAdmin) {
+        query.eq('auth_user_id', currentUserId);
+      }
+
+      const { data, error } = await query.order('created_at', { ascending: false });
 
       if (error) {
         console.error("Error fetching members:", error);

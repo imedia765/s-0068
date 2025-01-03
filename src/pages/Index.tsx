@@ -9,12 +9,11 @@ import { useRoleAccess } from "@/hooks/useRoleAccess";
 import { useToast } from "@/hooks/use-toast";
 import MembersList from "@/components/MembersList";
 import { Input } from "@/components/ui/input";
-import { useState as useSearchState } from "react";
 
 const Index = () => {
   const [activeTab, setActiveTab] = useState("dashboard");
   const [searchTerm, setSearchTerm] = useState("");
-  const { userRole } = useRoleAccess();
+  const { userRole, roleLoading } = useRoleAccess();
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -38,7 +37,13 @@ const Index = () => {
     }
   };
 
+  if (roleLoading) {
+    return <div className="flex justify-center items-center min-h-screen">Loading...</div>;
+  }
+
   const renderContent = () => {
+    console.log('Rendering content for tab:', activeTab, 'User role:', userRole);
+    
     switch (activeTab) {
       case "dashboard":
         return <DashboardView onLogout={handleLogout} />;

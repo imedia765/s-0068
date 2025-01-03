@@ -27,7 +27,7 @@ export const useRoleAccess = () => {
         .from('user_roles')
         .select('role')
         .eq('user_id', session.user.id)
-        .maybeSingle();
+        .single();
 
       if (roleError) {
         console.error('Error fetching role in central hook:', roleError);
@@ -40,8 +40,9 @@ export const useRoleAccess = () => {
       }
 
       // If no role is found, default to 'member'
-      console.log('Fetched role from central hook:', roleData?.role);
-      return (roleData?.role as UserRole) || 'member';
+      const role = roleData?.role || 'member';
+      console.log('Fetched role from central hook:', role);
+      return role as UserRole;
     },
     staleTime: ROLE_STALE_TIME,
     retry: 2,

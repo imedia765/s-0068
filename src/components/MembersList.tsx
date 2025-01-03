@@ -5,6 +5,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import MemberDetailsSection from './members/MemberDetailsSection';
+import { useToast } from "@/components/ui/use-toast";
 
 type Member = Database['public']['Tables']['members']['Row'];
 
@@ -14,6 +15,8 @@ interface MembersListProps {
 }
 
 const MembersList = ({ searchTerm, userRole }: MembersListProps) => {
+  const { toast } = useToast();
+
   const { data: members, isLoading, error } = useQuery({
     queryKey: ['members', searchTerm, userRole],
     queryFn: async () => {
@@ -31,16 +34,29 @@ const MembersList = ({ searchTerm, userRole }: MembersListProps) => {
         const { data: { user } } = await supabase.auth.getUser();
         if (user) {
           console.log('Getting collector name for user:', user.id);
-          const { data: collectorData } = await supabase
+          const { data: collectorData, error: collectorError } = await supabase
             .from('members_collectors')
             .select('name')
             .eq('member_profile_id', user.id)
             .eq('active', true)
-            .single();
+            .maybeSingle(); // Changed from single() to maybeSingle()
+
+          if (collectorError) {
+            console.error('Error fetching collector data:', collectorError);
+            toast({
+              title: "Error",
+              description: "Failed to fetch collector information",
+              variant: "destructive",
+            });
+            return [];
+          }
 
           if (collectorData?.name) {
             console.log('Filtering members for collector:', collectorData.name);
             query = query.eq('collector', collectorData.name);
+          } else {
+            console.log('No collector data found for user');
+            return [];
           }
         }
       }
@@ -50,6 +66,11 @@ const MembersList = ({ searchTerm, userRole }: MembersListProps) => {
       
       if (error) {
         console.error('Error fetching members:', error);
+        toast({
+          title: "Error",
+          description: "Failed to fetch members",
+          variant: "destructive",
+        });
         throw error;
       }
       

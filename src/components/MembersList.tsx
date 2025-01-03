@@ -26,12 +26,22 @@ const MembersList = ({ searchTerm, userRole }: MembersListProps) => {
         query = query.or(`full_name.ilike.%${searchTerm}%,member_number.ilike.%${searchTerm}%,collector.ilike.%${searchTerm}%`);
       }
 
-      // If user is a collector, only show their assigned members
+      // If user is a collector, get their collector name first
       if (userRole === 'collector') {
         const { data: { user } } = await supabase.auth.getUser();
         if (user) {
-          console.log('Filtering members for collector:', user.id);
-          query = query.eq('collector_id', user.id);
+          console.log('Getting collector name for user:', user.id);
+          const { data: collectorData } = await supabase
+            .from('members_collectors')
+            .select('name')
+            .eq('member_profile_id', user.id)
+            .eq('active', true)
+            .single();
+
+          if (collectorData?.name) {
+            console.log('Filtering members for collector:', collectorData.name);
+            query = query.eq('collector', collectorData.name);
+          }
         }
       }
       

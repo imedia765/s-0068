@@ -39,7 +39,7 @@ const MembersList = ({ searchTerm, userRole }: MembersListProps) => {
             .select('name')
             .eq('member_profile_id', user.id)
             .eq('active', true)
-            .maybeSingle(); // Changed from single() to maybeSingle()
+            .maybeSingle();
 
           if (collectorError) {
             console.error('Error fetching collector data:', collectorError);
@@ -48,15 +48,15 @@ const MembersList = ({ searchTerm, userRole }: MembersListProps) => {
               description: "Failed to fetch collector information",
               variant: "destructive",
             });
-            return [];
+            throw collectorError;
           }
 
+          // Only filter by collector name if we found one
           if (collectorData?.name) {
             console.log('Filtering members for collector:', collectorData.name);
             query = query.eq('collector', collectorData.name);
           } else {
             console.log('No collector data found for user');
-            return [];
           }
         }
       }

@@ -4,8 +4,6 @@ import { Database } from '@/integrations/supabase/types';
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import MemberDetailsSection from './members/MemberDetailsSection';
-import { useToast } from "@/components/ui/use-toast";
 
 type Member = Database['public']['Tables']['members']['Row'];
 
@@ -15,12 +13,10 @@ interface MembersListProps {
 }
 
 const MembersList = ({ searchTerm, userRole }: MembersListProps) => {
-  const { toast } = useToast();
-
   const { data: members, isLoading, error } = useQuery({
     queryKey: ['members', searchTerm, userRole],
     queryFn: async () => {
-      console.log('Fetching members with role:', userRole);
+      console.log('Fetching members...');
       let query = supabase
         .from('members')
         .select('*');
@@ -29,35 +25,11 @@ const MembersList = ({ searchTerm, userRole }: MembersListProps) => {
         query = query.or(`full_name.ilike.%${searchTerm}%,member_number.ilike.%${searchTerm}%,collector.ilike.%${searchTerm}%`);
       }
 
-      // If user is a collector, get their collector name first
+      // If user is a collector, only show their assigned members
       if (userRole === 'collector') {
         const { data: { user } } = await supabase.auth.getUser();
         if (user) {
-          console.log('Getting collector name for user:', user.id);
-          const { data: collectorData, error: collectorError } = await supabase
-            .from('members_collectors')
-            .select('name')
-            .eq('member_profile_id', user.id)
-            .eq('active', true)
-            .maybeSingle();
-
-          if (collectorError) {
-            console.error('Error fetching collector data:', collectorError);
-            toast({
-              title: "Error",
-              description: "Failed to fetch collector information",
-              variant: "destructive",
-            });
-            throw collectorError;
-          }
-
-          // Only filter by collector name if we found one
-          if (collectorData?.name) {
-            console.log('Filtering members for collector:', collectorData.name);
-            query = query.eq('collector', collectorData.name);
-          } else {
-            console.log('No collector data found for user');
-          }
+          query = query.eq('collector_id', user.id);
         }
       }
       
@@ -66,15 +38,9 @@ const MembersList = ({ searchTerm, userRole }: MembersListProps) => {
       
       if (error) {
         console.error('Error fetching members:', error);
-        toast({
-          title: "Error",
-          description: "Failed to fetch members",
-          variant: "destructive",
-        });
         throw error;
       }
       
-      console.log('Fetched members count:', data?.length);
       return data as Member[];
     },
   });
@@ -138,7 +104,22 @@ const MembersList = ({ searchTerm, userRole }: MembersListProps) => {
                 </div>
               </div>
               
-              <MemberDetailsSection member={member} userRole={userRole} />
+              <div className="mt-4 pt-4 border-t border-white/10">
+                <div className="grid grid-cols-3 gap-4">
+                  <div>
+                    <p className="text-dashboard-muted mb-1">Membership Type</p>
+                    <p className="text-dashboard-text">{member.membership_type || 'Standard'}</p>
+                  </div>
+                  <div>
+                    <p className="text-dashboard-muted mb-1">Collector</p>
+                    <p className="text-dashboard-text">{member.collector || 'Not assigned'}</p>
+                  </div>
+                  <div>
+                    <p className="text-dashboard-muted mb-1">Status</p>
+                    <p className="text-dashboard-text">{member.status || 'Pending'}</p>
+                  </div>
+                </div>
+              </div>
             </AccordionContent>
           </AccordionItem>
         ))}

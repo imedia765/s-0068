@@ -6,7 +6,7 @@ export type UserRole = 'admin' | 'collector' | 'member' | null;
 const ROLE_STALE_TIME = 1000 * 60 * 5; // 5 minutes
 
 export const useRoleAccess = () => {
-  const { data: userRole, isLoading: roleLoading, error } = useQuery({
+  const { data: userRole = null, isLoading: roleLoading, error } = useQuery({
     queryKey: ['userRole'],
     queryFn: async () => {
       console.log('Fetching user role from central hook...');
@@ -28,7 +28,10 @@ export const useRoleAccess = () => {
           .eq('role', 'admin')
           .maybeSingle();
 
-        if (adminError) throw adminError;
+        if (adminError) {
+          console.error('Admin role check error:', adminError);
+          return null;
+        }
 
         if (adminRole?.role === 'admin') {
           console.log('User is an admin');
@@ -43,7 +46,10 @@ export const useRoleAccess = () => {
           .eq('active', true)
           .maybeSingle();
 
-        if (collectorError) throw collectorError;
+        if (collectorError) {
+          console.error('Collector check error:', collectorError);
+          return null;
+        }
 
         if (collectorData?.name) {
           console.log('User is a collector:', collectorData.name);
@@ -57,7 +63,10 @@ export const useRoleAccess = () => {
           .eq('auth_user_id', session.user.id)
           .maybeSingle();
 
-        if (memberError) throw memberError;
+        if (memberError) {
+          console.error('Member check error:', memberError);
+          return null;
+        }
 
         if (memberData?.id) {
           console.log('User is a member');
@@ -73,7 +82,8 @@ export const useRoleAccess = () => {
       }
     },
     staleTime: ROLE_STALE_TIME,
-    retry: 1
+    retry: 1,
+    initialData: null
   });
 
   const canAccessTab = (tab: string): boolean => {

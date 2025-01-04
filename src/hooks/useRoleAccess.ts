@@ -27,6 +27,7 @@ export const useRoleAccess = () => {
         .from('user_roles')
         .select('role')
         .eq('user_id', session.user.id)
+        .eq('role', 'admin')
         .maybeSingle();
 
       if (roleError && roleError.code !== 'PGRST116') {
@@ -62,35 +63,41 @@ export const useRoleAccess = () => {
         });
       }
 
+      console.log('Collector status result:', collectorData);
+
       // If user is an active collector, return collector role
       if (collectorData?.name) {
         console.log('User is a collector:', collectorData.name);
         return 'collector' as UserRole;
       }
 
-      // Finally check if user is a regular member
+      // Finally check if user has a member role in user_roles
+      const { data: memberRoleData, error: memberRoleError } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', session.user.id)
+        .eq('role', 'member')
+        .maybeSingle();
+
+      if (memberRoleData?.role === 'member') {
+        console.log('User has member role in user_roles');
+        return 'member' as UserRole;
+      }
+
+      // If no specific role is found, check if they exist in members table
       const { data: memberData, error: memberError } = await supabase
         .from('members')
         .select('id')
         .eq('auth_user_id', session.user.id)
         .maybeSingle();
 
-      if (memberError && memberError.code !== 'PGRST116') {
-        console.error('Error checking member status:', memberError);
-        toast({
-          title: "Error checking member status",
-          description: memberError.message,
-          variant: "destructive",
-        });
-      }
-
       if (memberData?.id) {
-        console.log('User is a regular member');
+        console.log('User found in members table, assigning member role');
         return 'member' as UserRole;
       }
 
-      console.log('No specific role found, defaulting to member');
-      return 'member' as UserRole;
+      console.log('No specific role found, defaulting to null');
+      return null;
     },
     staleTime: ROLE_STALE_TIME,
     retry: 2,

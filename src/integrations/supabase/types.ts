@@ -264,6 +264,10 @@ export type Database = {
         }
         Returns: boolean
       }
+      perform_user_roles_sync: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
       restore_from_backup: {
         Args: {
           backup_data: Json

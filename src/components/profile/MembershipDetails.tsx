@@ -11,13 +11,11 @@ interface MembershipDetailsProps {
   userRole: string | null;
 }
 
-// Define the allowed role types to match the database enum
 type AppRole = 'admin' | 'collector' | 'member';
 
 const MembershipDetails = ({ memberProfile, userRole }: MembershipDetailsProps) => {
   const { toast } = useToast();
 
-  // Fetch all roles for the user
   const { data: userRoles } = useQuery({
     queryKey: ['userRoles', memberProfile.auth_user_id],
     queryFn: async () => {
@@ -38,7 +36,6 @@ const MembershipDetails = ({ memberProfile, userRole }: MembershipDetailsProps) 
     enabled: !!memberProfile.auth_user_id
   });
 
-  // Get the highest priority role (admin > collector > member)
   const getHighestRole = (roles: AppRole[]): AppRole | null => {
     if (roles.includes('admin')) return 'admin';
     if (roles.includes('collector')) return 'collector';
@@ -46,7 +43,6 @@ const MembershipDetails = ({ memberProfile, userRole }: MembershipDetailsProps) 
     return null;
   };
 
-  // Use the highest role from the database if available, otherwise fall back to the passed userRole
   const displayRole = userRoles?.length ? getHighestRole(userRoles) : userRole;
 
   const handleRoleChange = async (newRole: AppRole) => {
@@ -60,7 +56,6 @@ const MembershipDetails = ({ memberProfile, userRole }: MembershipDetailsProps) 
     }
 
     try {
-      // First, delete existing role
       const { error: deleteError } = await supabase
         .from('user_roles')
         .delete()
@@ -68,7 +63,6 @@ const MembershipDetails = ({ memberProfile, userRole }: MembershipDetailsProps) 
 
       if (deleteError) throw deleteError;
 
-      // Then insert new role with proper typing
       const { error: insertError } = await supabase
         .from('user_roles')
         .insert({
@@ -96,7 +90,7 @@ const MembershipDetails = ({ memberProfile, userRole }: MembershipDetailsProps) 
     <div className="space-y-2">
       <p className="text-dashboard-muted text-sm">Membership Details</p>
       <div className="space-y-2">
-        <p className="text-dashboard-text flex items-center gap-2">
+        <div className="text-dashboard-text flex items-center gap-2">
           Status:{' '}
           <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${
             memberProfile?.status === 'active' 
@@ -105,8 +99,8 @@ const MembershipDetails = ({ memberProfile, userRole }: MembershipDetailsProps) 
           }`}>
             {memberProfile?.status || 'Pending'}
           </span>
-        </p>
-        <p className="text-dashboard-text flex items-center gap-2">
+        </div>
+        <div className="text-dashboard-text flex items-center gap-2">
           <span className="text-dashboard-accent2">Type:</span>
           <span className="flex items-center gap-2">
             {memberProfile?.membership_type || 'Standard'}
@@ -142,7 +136,7 @@ const MembershipDetails = ({ memberProfile, userRole }: MembershipDetailsProps) 
               <RoleBadge role={displayRole} />
             )}
           </span>
-        </p>
+        </div>
       </div>
     </div>
   );

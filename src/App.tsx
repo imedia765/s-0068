@@ -40,6 +40,8 @@ function App() {
       if (_event === 'SIGNED_OUT') {
         console.log('User signed out, clearing session and queries');
         await handleSignOut();
+        window.location.href = '/login'; // Force a full page reload and redirect
+        return; // Exit early to prevent further state updates
       }
 
       setSession(session);
@@ -74,9 +76,9 @@ function App() {
 
   const handleSignOut = async () => {
     try {
-      await supabase.auth.signOut();
-      setSession(null);
-      await queryClient.resetQueries();
+      setSession(null); // Clear session state immediately
+      await queryClient.resetQueries(); // Reset all queries
+      await supabase.auth.signOut(); // Sign out from Supabase
       console.log('Sign out complete, queries reset');
     } catch (error) {
       console.error('Error during sign out:', error);

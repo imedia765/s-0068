@@ -75,17 +75,20 @@ const DashboardView = () => {
         {/* Financial Overview Section */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
           <MetricCard 
-            title="Yearly Payment Status" 
+            title="Annual Payment (£40)" 
+            subtitle="Due: Jan 1st, 2025"
             value={memberProfile?.yearly_payment_status === 'completed' ? 100 : 0}
             color={memberProfile?.yearly_payment_status === 'completed' ? '#4CAF50' : '#FFA726'} 
           />
           <MetricCard 
             title="Emergency Collection" 
+            subtitle="One-time payment"
             value={memberProfile?.emergency_collection_status === 'completed' ? 100 : 0}
             color={memberProfile?.emergency_collection_status === 'completed' ? '#4CAF50' : '#FFA726'} 
           />
           <MetricCard 
             title="Overall Status" 
+            subtitle="Payment Progress"
             value={75} 
             color="#8989DE" 
           />
@@ -95,8 +98,8 @@ const DashboardView = () => {
         <TotalCount 
           items={[
             {
-              count: memberProfile?.yearly_payment_amount || 0,
-              label: "Yearly Payment",
+              count: 40,
+              label: "Annual Payment",
               icon: <Users className="h-4 w-4 text-dashboard-accent1" />
             },
             {

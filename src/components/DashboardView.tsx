@@ -2,31 +2,14 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import MemberProfileCard from './MemberProfileCard';
-import { Button } from "@/components/ui/button";
+import MonthlyChart from './MonthlyChart';
+import MetricCard from './MetricCard';
+import TotalCount from './TotalCount';
+import { Users } from 'lucide-react';
 
-interface DashboardViewProps {
-  onLogout: () => void;
-}
-
-const DashboardView = ({ onLogout }: DashboardViewProps) => {
+const DashboardView = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
-
-  const handleLogout = async () => {
-    try {
-      // Invalidate all queries before logout
-      await queryClient.invalidateQueries();
-      await supabase.auth.signOut();
-      onLogout();
-    } catch (error) {
-      console.error('Error during logout:', error);
-      toast({
-        title: "Error",
-        description: "Failed to log out",
-        variant: "destructive",
-      });
-    }
-  };
 
   const { data: memberProfile, isError } = useQuery({
     queryKey: ['memberProfile'],
@@ -81,22 +64,51 @@ const DashboardView = ({ onLogout }: DashboardViewProps) => {
 
   return (
     <>
-      <header className="mb-8 flex justify-between items-center">
-        <div>
-          <h1 className="text-3xl font-medium mb-2 text-white">Dashboard</h1>
-          <p className="text-dashboard-text">Welcome back!</p>
-        </div>
-        <Button 
-          onClick={handleLogout} 
-          variant="outline" 
-          className="border-white/10 hover:bg-white/5 text-dashboard-text"
-        >
-          Logout
-        </Button>
+      <header className="mb-8">
+        <h1 className="text-3xl font-medium mb-2 text-white">Dashboard</h1>
+        <p className="text-dashboard-text">Welcome back!</p>
       </header>
       
       <div className="grid gap-6">
         <MemberProfileCard memberProfile={memberProfile} />
+        
+        {/* Financial Overview Section */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+          <MetricCard 
+            title="Yearly Payment Status" 
+            value={memberProfile?.yearly_payment_status === 'completed' ? 100 : 0}
+            color={memberProfile?.yearly_payment_status === 'completed' ? '#4CAF50' : '#FFA726'} 
+          />
+          <MetricCard 
+            title="Emergency Collection" 
+            value={memberProfile?.emergency_collection_status === 'completed' ? 100 : 0}
+            color={memberProfile?.emergency_collection_status === 'completed' ? '#4CAF50' : '#FFA726'} 
+          />
+          <MetricCard 
+            title="Overall Status" 
+            value={75} 
+            color="#8989DE" 
+          />
+        </div>
+
+        {/* Payment Summary */}
+        <TotalCount 
+          items={[
+            {
+              count: memberProfile?.yearly_payment_amount || 0,
+              label: "Yearly Payment",
+              icon: <Users className="h-4 w-4 text-dashboard-accent1" />
+            },
+            {
+              count: memberProfile?.emergency_collection_amount || 0,
+              label: "Emergency Collection",
+              icon: <Users className="h-4 w-4 text-dashboard-accent2" />
+            }
+          ]}
+        />
+
+        {/* Monthly Chart */}
+        <MonthlyChart />
       </div>
     </>
   );

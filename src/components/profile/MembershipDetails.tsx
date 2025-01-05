@@ -17,30 +17,37 @@ type AppRole = 'admin' | 'collector' | 'member';
 const MembershipDetails = ({ memberProfile, userRole }: MembershipDetailsProps) => {
   const { toast } = useToast();
 
-  // Fetch the actual role from user_roles table
-  const { data: actualRole } = useQuery({
-    queryKey: ['actualUserRole', memberProfile.auth_user_id],
+  // Fetch all roles for the user
+  const { data: userRoles } = useQuery({
+    queryKey: ['userRoles', memberProfile.auth_user_id],
     queryFn: async () => {
-      if (!memberProfile.auth_user_id) return null;
+      if (!memberProfile.auth_user_id) return [];
       
       const { data, error } = await supabase
         .from('user_roles')
         .select('role')
-        .eq('user_id', memberProfile.auth_user_id)
-        .maybeSingle();
+        .eq('user_id', memberProfile.auth_user_id);
 
       if (error) {
-        console.error('Error fetching actual role:', error);
-        return null;
+        console.error('Error fetching roles:', error);
+        return [];
       }
 
-      return data?.role || null;
+      return data.map(r => r.role) as AppRole[];
     },
     enabled: !!memberProfile.auth_user_id
   });
 
-  // Use the actual role from the database if available, otherwise fall back to the passed userRole
-  const displayRole = actualRole || userRole;
+  // Get the highest priority role (admin > collector > member)
+  const getHighestRole = (roles: AppRole[]): AppRole | null => {
+    if (roles.includes('admin')) return 'admin';
+    if (roles.includes('collector')) return 'collector';
+    if (roles.includes('member')) return 'member';
+    return null;
+  };
+
+  // Use the highest role from the database if available, otherwise fall back to the passed userRole
+  const displayRole = userRoles?.length ? getHighestRole(userRoles) : userRole;
 
   const handleRoleChange = async (newRole: AppRole) => {
     if (!memberProfile.auth_user_id) {

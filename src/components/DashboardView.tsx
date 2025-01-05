@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import MemberProfileCard from './MemberProfileCard';
 import MonthlyChart from './MonthlyChart';
-import MetricCard from './MetricCard';
+import PaymentCard from './PaymentCard';
 import TotalCount from './TotalCount';
 import { Users } from 'lucide-react';
 
@@ -72,27 +72,12 @@ const DashboardView = () => {
       <div className="grid gap-6">
         <MemberProfileCard memberProfile={memberProfile} />
         
-        {/* Financial Overview Section */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-          <MetricCard 
-            title="Annual Payment (£40)" 
-            subtitle="Due: Jan 1st, 2025"
-            value={memberProfile?.yearly_payment_status === 'completed' ? 100 : 0}
-            color={memberProfile?.yearly_payment_status === 'completed' ? '#4CAF50' : '#FFA726'} 
-          />
-          <MetricCard 
-            title="Emergency Collection" 
-            subtitle="One-time payment"
-            value={memberProfile?.emergency_collection_status === 'completed' ? 100 : 0}
-            color={memberProfile?.emergency_collection_status === 'completed' ? '#4CAF50' : '#FFA726'} 
-          />
-          <MetricCard 
-            title="Overall Status" 
-            subtitle="Payment Progress"
-            value={75} 
-            color="#8989DE" 
-          />
-        </div>
+        {/* Payment Card */}
+        <PaymentCard 
+          annualPaymentStatus={memberProfile?.yearly_payment_status}
+          emergencyCollectionStatus={memberProfile?.emergency_collection_status}
+          emergencyCollectionAmount={memberProfile?.emergency_collection_amount}
+        />
 
         {/* Payment Summary */}
         <TotalCount 

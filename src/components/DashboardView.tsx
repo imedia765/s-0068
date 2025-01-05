@@ -74,8 +74,8 @@ const DashboardView = () => {
         
         {/* Payment Card */}
         <PaymentCard 
-          annualPaymentStatus={memberProfile?.yearly_payment_status}
-          emergencyCollectionStatus={memberProfile?.emergency_collection_status}
+          annualPaymentStatus={(memberProfile?.yearly_payment_status || 'pending') as 'completed' | 'pending'}
+          emergencyCollectionStatus={(memberProfile?.emergency_collection_status || 'pending') as 'completed' | 'pending'}
           emergencyCollectionAmount={memberProfile?.emergency_collection_amount}
         />
 

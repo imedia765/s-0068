@@ -64,8 +64,10 @@ serve(async (req) => {
     }
 
     // Update the secret using the admin API
-    const projectId = Deno.env.get('SUPABASE_PROJECT_ID') || '';
-    const secretsApiUrl = `https://api.supabase.com/v1/projects/${projectId}/secrets`;
+    const projectRef = Deno.env.get('SUPABASE_PROJECT_REF') || '';
+    const secretsApiUrl = `https://api.supabase.com/v1/projects/${projectRef}/secrets`;
+    
+    console.log('Updating secret at:', secretsApiUrl);
     
     const secretsResponse = await fetch(secretsApiUrl, {
       method: 'POST',

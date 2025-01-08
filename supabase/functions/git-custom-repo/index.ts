@@ -38,8 +38,35 @@ serve(async (req) => {
     const githubToken = Deno.env.get('GITHUB_PAT');
     if (!githubToken) {
       console.error('GitHub PAT not configured');
-      throw new Error('GitHub token not configured');
+      throw new Error('GitHub token not configured in Supabase secrets');
     }
+
+    console.log('Verifying GitHub token...');
+
+    // First verify the GitHub token is valid
+    const tokenCheckResponse = await fetch('https://api.github.com/user', {
+      headers: {
+        'Authorization': `token ${githubToken}`,
+        'Accept': 'application/vnd.github.v3+json',
+        'User-Agent': 'Supabase-Edge-Function'
+      }
+    });
+
+    if (!tokenCheckResponse.ok) {
+      const tokenError = await tokenCheckResponse.text();
+      console.error('GitHub token validation failed:', tokenError);
+      
+      await supabase.from('git_operations_logs').insert({
+        operation_type: 'push',
+        status: 'failed',
+        created_by: user.id,
+        message: 'Invalid GitHub token - please update the GITHUB_PAT secret in Supabase'
+      });
+      
+      throw new Error('Invalid GitHub token - please update the GITHUB_PAT secret in Supabase');
+    }
+
+    console.log('GitHub token validated successfully');
 
     const { repoId, commitMessage = 'Update from dashboard' } = await req.json();
     console.log('Processing request for repo ID:', repoId);
@@ -83,6 +110,8 @@ serve(async (req) => {
       message: `Starting push operation to ${repoConfig.repo_url}`
     });
 
+    console.log('Verifying repository access...');
+
     // First verify the repository exists and is accessible
     const repoCheckResponse = await fetch(
       `https://api.github.com/repos/${owner}/${repo}`,
@@ -106,8 +135,10 @@ serve(async (req) => {
         message: `Repository not found or inaccessible: ${repoConfig.repo_url}`
       });
       
-      throw new Error(`Repository check failed: ${errorData}`);
+      throw new Error(`Repository access failed: ${errorData}`);
     }
+
+    console.log('Repository access verified');
 
     // Get the latest commit SHA
     const shaResponse = await fetch(

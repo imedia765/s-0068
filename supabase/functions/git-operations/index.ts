@@ -34,17 +34,35 @@ serve(async (req) => {
       throw new Error('Invalid token');
     }
 
+    // Get GitHub token and verify it's set
     const githubToken = Deno.env.get('GITHUB_PAT');
     if (!githubToken) {
       console.error('GitHub PAT not configured');
-      throw new Error('GitHub token not configured');
+      throw new Error('GitHub token not configured in Supabase secrets');
     }
 
     const { branch = 'main' } = await req.json();
     const repoOwner = 'imedia765';
     const repoName = 's-935078';
 
-    console.log(`Fetching latest commit SHA for ${repoOwner}/${repoName}:${branch}`);
+    console.log(`Verifying GitHub token and repository access...`);
+
+    // First verify the GitHub token is valid
+    const tokenCheckResponse = await fetch('https://api.github.com/user', {
+      headers: {
+        'Authorization': `token ${githubToken}`,
+        'Accept': 'application/vnd.github.v3+json',
+        'User-Agent': 'Supabase-Edge-Function'
+      }
+    });
+
+    if (!tokenCheckResponse.ok) {
+      const tokenError = await tokenCheckResponse.text();
+      console.error('GitHub token validation failed:', tokenError);
+      throw new Error('Invalid GitHub token - please update the GITHUB_PAT secret in Supabase');
+    }
+
+    console.log('GitHub token validated successfully');
 
     // Log operation start
     await supabase.from('git_operations_logs').insert({
@@ -54,7 +72,7 @@ serve(async (req) => {
       message: `Starting push operation to ${repoOwner}/${repoName}:${branch}`
     });
 
-    // First verify the repository exists and is accessible
+    // Verify repository access
     const repoCheckResponse = await fetch(
       `https://api.github.com/repos/${repoOwner}/${repoName}`,
       {
@@ -69,8 +87,10 @@ serve(async (req) => {
     if (!repoCheckResponse.ok) {
       const errorData = await repoCheckResponse.text();
       console.error('Repository check failed:', errorData);
-      throw new Error(`Repository check failed: ${errorData}`);
+      throw new Error(`Repository access failed: ${errorData}`);
     }
+
+    console.log('Repository access verified');
 
     // Get the latest commit SHA
     const shaResponse = await fetch(

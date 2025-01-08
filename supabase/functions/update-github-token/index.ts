@@ -7,8 +7,9 @@ const corsHeaders = {
 }
 
 serve(async (req) => {
+  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders })
+    return new Response(null, { headers: corsHeaders })
   }
 
   try {
@@ -62,12 +63,23 @@ serve(async (req) => {
       throw new Error('Invalid GitHub token')
     }
 
-    // Update the secret in Supabase
-    const { error: updateError } = await supabaseClient
-      .functions.setSecret('GITHUB_PAT', githubToken)
+    // Update the secret using the REST API
+    const secretsApiUrl = `${Deno.env.get('SUPABASE_URL')}/functions/v1/secrets`;
+    const secretsResponse = await fetch(secretsApiUrl, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        name: 'GITHUB_PAT',
+        value: githubToken
+      })
+    });
 
-    if (updateError) {
-      throw updateError
+    if (!secretsResponse.ok) {
+      console.error('Failed to update secret:', await secretsResponse.text());
+      throw new Error('Failed to update GitHub token in Supabase')
     }
 
     // Log the update

@@ -63,18 +63,20 @@ serve(async (req) => {
       throw new Error('Invalid GitHub token')
     }
 
-    // Update the secret using the REST API
-    const secretsApiUrl = `${Deno.env.get('SUPABASE_URL')}/functions/v1/secrets`;
+    // Update the secret using the admin API
+    const projectId = Deno.env.get('SUPABASE_PROJECT_ID') || '';
+    const secretsApiUrl = `https://api.supabase.com/v1/projects/${projectId}/secrets`;
+    
     const secretsResponse = await fetch(secretsApiUrl, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`,
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify({
+      body: JSON.stringify([{
         name: 'GITHUB_PAT',
         value: githubToken
-      })
+      }])
     });
 
     if (!secretsResponse.ok) {

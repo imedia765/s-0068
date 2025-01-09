@@ -13,10 +13,14 @@ serve(async (req) => {
   }
 
   try {
-    const supabaseClient = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    )
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
+    
+    if (!supabaseUrl || !supabaseServiceKey) {
+      throw new Error('Missing required environment variables')
+    }
+
+    const supabaseClient = createClient(supabaseUrl, supabaseServiceKey)
 
     // Get the authorization header from the request
     const authHeader = req.headers.get('Authorization')
@@ -71,21 +75,13 @@ serve(async (req) => {
 
     console.log('GitHub token verified successfully')
 
-    const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
-    if (!serviceRoleKey) {
-      throw new Error('Service role key not found')
-    }
-
-    console.log('Updating secret at:', `https://api.supabase.com/v1/projects/trzaeinxlytyqxptkuyj/secrets`)
-
-    // Update the secret using the admin API
-    const secretsResponse = await fetch(
+    // Update the secret using the Supabase Management API
+    const managementApiResponse = await fetch(
       'https://api.supabase.com/v1/projects/trzaeinxlytyqxptkuyj/secrets',
       {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${serviceRoleKey}`,
-          'apikey': serviceRoleKey,
+          'Authorization': `Bearer ${supabaseServiceKey}`,
           'Content-Type': 'application/json'
         },
         body: JSON.stringify([{
@@ -95,11 +91,11 @@ serve(async (req) => {
       }
     )
 
-    const secretsResponseText = await secretsResponse.text()
-    console.log('Secrets API response:', secretsResponseText)
+    const managementApiResponseText = await managementApiResponse.text()
+    console.log('Management API response:', managementApiResponseText)
 
-    if (!secretsResponse.ok) {
-      console.error('Failed to update secret:', secretsResponseText)
+    if (!managementApiResponse.ok) {
+      console.error('Failed to update secret:', managementApiResponseText)
       throw new Error('Failed to update GitHub token in Supabase')
     }
 

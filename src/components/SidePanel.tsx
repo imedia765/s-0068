@@ -7,7 +7,6 @@ import {
   History,
   Settings,
   Wallet,
-  FileText,
   LogOut
 } from "lucide-react";
 import { UserRole } from "@/hooks/useRoleAccess";
@@ -65,15 +64,6 @@ const SidePanel = ({ onTabChange, userRole }: SidePanelProps) => {
               >
                 <Wallet className="h-4 w-4" />
                 Collectors & Financials
-              </Button>
-
-              <Button
-                variant="ghost"
-                className="w-full justify-start gap-2 text-sm"
-                onClick={() => onTabChange('reports')}
-              >
-                <FileText className="h-4 w-4" />
-                Reports
               </Button>
 
               <Button

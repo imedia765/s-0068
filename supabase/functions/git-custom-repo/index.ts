@@ -14,93 +14,74 @@ serve(async (req) => {
   try {
     console.log('Starting custom repo git operation...');
     
-    const supabase = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    )
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
+    
+    if (!supabaseUrl || !supabaseServiceKey) {
+      console.error('Missing required environment variables')
+      throw new Error('Server configuration error')
+    }
+
+    const supabase = createClient(supabaseUrl, supabaseServiceKey)
 
     // Verify authentication
-    const authHeader = req.headers.get('Authorization');
+    const authHeader = req.headers.get('Authorization')
     if (!authHeader) {
-      throw new Error('No authorization header');
+      console.error('No authorization header')
+      throw new Error('No authorization header')
     }
 
     const { data: { user }, error: authError } = await supabase.auth.getUser(
       authHeader.replace('Bearer ', '')
-    );
+    )
 
     if (authError || !user) {
-      console.error('Auth error:', authError);
-      throw new Error('Invalid token');
+      console.error('Auth error:', authError)
+      throw new Error('Invalid token')
     }
 
-    // Verify GitHub token
-    const githubToken = Deno.env.get('GITHUB_PAT');
+    console.log('User authenticated:', user.id)
+
+    // Verify GitHub token exists
+    const githubToken = Deno.env.get('GITHUB_PAT')
     if (!githubToken) {
-      console.error('GitHub PAT not configured');
-      throw new Error('GitHub token not configured in Supabase secrets');
+      console.error('GitHub PAT not configured')
+      throw new Error('GitHub token not configured')
     }
 
-    console.log('Verifying GitHub token...');
-
-    // First verify the GitHub token is valid
-    const tokenCheckResponse = await fetch('https://api.github.com/user', {
-      headers: {
-        'Authorization': `token ${githubToken}`,
-        'Accept': 'application/vnd.github.v3+json',
-        'User-Agent': 'Supabase-Edge-Function'
-      }
-    });
-
-    if (!tokenCheckResponse.ok) {
-      const tokenError = await tokenCheckResponse.text();
-      console.error('GitHub token validation failed:', tokenError);
-      
-      await supabase.from('git_operations_logs').insert({
-        operation_type: 'push',
-        status: 'failed',
-        created_by: user.id,
-        message: 'Invalid GitHub token - please update the GITHUB_PAT secret in Supabase'
-      });
-      
-      throw new Error('Invalid GitHub token - please update the GITHUB_PAT secret in Supabase');
-    }
-
-    console.log('GitHub token validated successfully');
-
-    const { repoId, commitMessage = 'Update from dashboard' } = await req.json();
-    console.log('Processing request for repo ID:', repoId);
+    const { repoId, commitMessage = 'Update from dashboard' } = await req.json()
+    console.log('Processing request for repo ID:', repoId)
 
     // Get repository configuration
     const { data: repoConfig, error: repoError } = await supabase
       .from('git_repository_configs')
       .select('*')
       .eq('id', repoId)
-      .single();
+      .single()
 
     if (repoError || !repoConfig) {
-      console.error('Repository config error:', repoError);
-      throw new Error('Repository configuration not found');
+      console.error('Repository config error:', repoError)
+      throw new Error('Repository configuration not found')
     }
 
     console.log('Found repo config:', {
       url: repoConfig.repo_url,
       branch: repoConfig.branch
-    });
+    })
 
     // Extract owner and repo from the URL
-    const repoUrl = repoConfig.repo_url.replace(/\.git$/, '');
+    const repoUrl = repoConfig.repo_url.replace(/\.git$/, '')
     const repoUrlParts = repoUrl
       .replace('https://github.com/', '')
-      .split('/');
+      .split('/')
     
     if (repoUrlParts.length !== 2) {
-      console.error('Invalid repo URL format:', repoConfig.repo_url);
-      throw new Error('Invalid repository URL format');
+      console.error('Invalid repo URL format:', repoConfig.repo_url)
+      throw new Error('Invalid repository URL format')
     }
 
-    const [owner, repo] = repoUrlParts;
-    console.log('Parsed repo details:', { owner, repo });
+    const [owner, repo] = repoUrlParts
+    console.log('Parsed repo details:', { owner, repo })
 
     // Log operation start
     await supabase.from('git_operations_logs').insert({
@@ -108,11 +89,9 @@ serve(async (req) => {
       status: 'started',
       created_by: user.id,
       message: `Starting push operation to ${repoConfig.repo_url}`
-    });
+    })
 
-    console.log('Verifying repository access...');
-
-    // First verify the repository exists and is accessible
+    // Verify repository access
     const repoCheckResponse = await fetch(
       `https://api.github.com/repos/${owner}/${repo}`,
       {
@@ -122,79 +101,52 @@ serve(async (req) => {
           'User-Agent': 'Supabase-Edge-Function'
         }
       }
-    );
+    )
 
     if (!repoCheckResponse.ok) {
-      const errorData = await repoCheckResponse.text();
-      console.error('Repository check failed:', errorData);
+      const errorData = await repoCheckResponse.text()
+      console.error('Repository check failed:', errorData)
       
       await supabase.from('git_operations_logs').insert({
         operation_type: 'push',
         status: 'failed',
         created_by: user.id,
-        message: `Repository not found or inaccessible: ${repoConfig.repo_url}`
-      });
+        message: `Repository access failed: ${errorData}`
+      })
       
-      throw new Error(`Repository access failed: ${errorData}`);
+      throw new Error(`Repository access failed: ${errorData}`)
     }
 
-    console.log('Repository access verified');
-
-    // Get the latest commit SHA
-    const shaResponse = await fetch(
-      `https://api.github.com/repos/${owner}/${repo}/git/refs/heads/${repoConfig.branch}`,
-      {
-        headers: {
-          'Authorization': `token ${githubToken}`,
-          'Accept': 'application/vnd.github.v3+json',
-          'User-Agent': 'Supabase-Edge-Function'
-        }
-      }
-    );
-
-    if (!shaResponse.ok) {
-      const errorData = await shaResponse.text();
-      console.error('SHA fetch failed:', errorData);
-      
-      await supabase.from('git_operations_logs').insert({
-        operation_type: 'push',
-        status: 'failed',
-        created_by: user.id,
-        message: `Branch ${repoConfig.branch} not found in repository ${repoConfig.repo_url}`
-      });
-
-      throw new Error(`Branch not found: ${errorData}`);
-    }
-
-    const shaData = await shaResponse.json();
-    console.log('Successfully retrieved SHA:', shaData);
+    console.log('Repository access verified')
 
     // Log success
     await supabase.from('git_operations_logs').insert({
       operation_type: 'push',
       status: 'completed',
       created_by: user.id,
-      message: `Successfully retrieved latest commit SHA from ${repoConfig.repo_url}`
-    });
+      message: `Successfully verified access to ${repoConfig.repo_url}`
+    })
 
     return new Response(
-      JSON.stringify({ success: true, data: shaData }),
+      JSON.stringify({ success: true }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+    )
 
   } catch (error) {
-    console.error('Error in git-custom-repo:', error);
+    console.error('Error in git-custom-repo:', error)
 
-    const supabase = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    );
-
-    await supabase.from('git_operations_logs').insert({
-      operation_type: 'push',
-      status: 'failed',
-      message: error instanceof Error ? error.message : 'Unknown error'
-    });
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
+    
+    if (supabaseUrl && supabaseServiceKey) {
+      const supabase = createClient(supabaseUrl, supabaseServiceKey)
+      
+      await supabase.from('git_operations_logs').insert({
+        operation_type: 'push',
+        status: 'failed',
+        message: error instanceof Error ? error.message : 'Unknown error'
+      })
+    }
 
     return new Response(
       JSON.stringify({
@@ -205,6 +157,6 @@ serve(async (req) => {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 400
       }
-    );
+    )
   }
-});
+})

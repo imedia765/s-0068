@@ -77,6 +77,7 @@ serve(async (req) => {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`,
+          'apikey': Deno.env.get('SUPABASE_SERVICE_ROLE_KEY'),
           'Content-Type': 'application/json'
         },
         body: JSON.stringify([{

@@ -71,34 +71,24 @@ serve(async (req) => {
     console.log('GitHub token verified successfully')
 
     // Update the secret using the admin API
-    const projectRef = Deno.env.get('SUPABASE_PROJECT_REF')
-    const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
-
-    if (!projectRef || !serviceRoleKey) {
-      console.error('Missing required environment variables:', { projectRef: !!projectRef, serviceRoleKey: !!serviceRoleKey })
-      throw new Error('Missing required environment variables')
-    }
-
-    const secretsApiUrl = `https://api.supabase.com/v1/projects/${projectRef}/secrets`
-    console.log('Updating secret at:', secretsApiUrl)
-    
-    const secretsResponse = await fetch(secretsApiUrl, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${serviceRoleKey}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify([{
-        name: 'GITHUB_PAT',
-        value: githubToken
-      }])
-    })
-
-    const secretsResponseText = await secretsResponse.text()
-    console.log('Secrets API response:', secretsResponseText)
+    const secretsResponse = await fetch(
+      'https://api.supabase.com/v1/projects/trzaeinxlytyqxptkuyj/secrets',
+      {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify([{
+          name: 'GITHUB_PAT',
+          value: githubToken
+        }])
+      }
+    )
 
     if (!secretsResponse.ok) {
-      console.error('Failed to update secret:', secretsResponseText)
+      const errorText = await secretsResponse.text()
+      console.error('Failed to update secret:', errorText)
       throw new Error('Failed to update GitHub token in Supabase')
     }
 

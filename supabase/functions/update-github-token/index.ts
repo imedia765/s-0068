@@ -21,6 +21,7 @@ serve(async (req) => {
     // Get the authorization header from the request
     const authHeader = req.headers.get('Authorization')
     if (!authHeader) {
+      console.error('No authorization header')
       throw new Error('No authorization header')
     }
 
@@ -70,14 +71,21 @@ serve(async (req) => {
 
     console.log('GitHub token verified successfully')
 
+    const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
+    if (!serviceRoleKey) {
+      throw new Error('Service role key not found')
+    }
+
+    console.log('Updating secret at:', `https://api.supabase.com/v1/projects/trzaeinxlytyqxptkuyj/secrets`)
+
     // Update the secret using the admin API
     const secretsResponse = await fetch(
       'https://api.supabase.com/v1/projects/trzaeinxlytyqxptkuyj/secrets',
       {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`,
-          'apikey': Deno.env.get('SUPABASE_SERVICE_ROLE_KEY'),
+          'Authorization': `Bearer ${serviceRoleKey}`,
+          'apikey': serviceRoleKey,
           'Content-Type': 'application/json'
         },
         body: JSON.stringify([{
@@ -87,9 +95,11 @@ serve(async (req) => {
       }
     )
 
+    const secretsResponseText = await secretsResponse.text()
+    console.log('Secrets API response:', secretsResponseText)
+
     if (!secretsResponse.ok) {
-      const errorText = await secretsResponse.text()
-      console.error('Failed to update secret:', errorText)
+      console.error('Failed to update secret:', secretsResponseText)
       throw new Error('Failed to update GitHub token in Supabase')
     }
 

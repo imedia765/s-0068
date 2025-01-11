@@ -295,16 +295,16 @@ export default function WebTools() {
               placeholder="Enter website URL (e.g., https://example.com)"
               value={url}
               onChange={(e) => setUrl(e.target.value)}
-              className="max-w-xl"
+              className="flex-1 max-w-2xl"
             />
             <Button onClick={analyzeWebsite} disabled={isLoading}>
               {isLoading ? "Analyzing..." : "Analyze Website"}
             </Button>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
             {/* Left Column - Console and Status */}
-            <div className="space-y-6">
+            <div className="space-y-6 sticky top-6">
               {status !== "idle" && (
                 <Alert
                   className={`${
@@ -325,20 +325,23 @@ export default function WebTools() {
                 </Alert>
               )}
 
-              <ScrollArea className="h-[300px] rounded border p-4">
-                {consoleLogs.map((log, index) => (
-                  <div
-                    key={index}
-                    className={`text-sm mb-2 ${
-                      log.type === "error" ? "text-[#ea384c]" :
-                      log.type === "success" ? "text-green-500" :
-                      "text-muted-foreground"
-                    }`}
-                  >
-                    [{log.timestamp}] {log.message}
-                  </div>
-                ))}
-              </ScrollArea>
+              <div className="bg-card rounded-lg p-6">
+                <h2 className="text-xl font-semibold mb-4">Console Output</h2>
+                <ScrollArea className="h-[calc(100vh-300px)] min-h-[300px] rounded border p-4">
+                  {consoleLogs.map((log, index) => (
+                    <div
+                      key={index}
+                      className={`text-sm mb-2 ${
+                        log.type === "error" ? "text-[#ea384c]" :
+                        log.type === "success" ? "text-green-500" :
+                        "text-muted-foreground"
+                      }`}
+                    >
+                      [{log.timestamp}] {log.message}
+                    </div>
+                  ))}
+                </ScrollArea>
+              </div>
             </div>
 
             {/* Right Column - Analysis Results */}

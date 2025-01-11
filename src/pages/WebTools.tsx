@@ -324,21 +324,20 @@ export default function WebTools() {
                 </Alert>
               )}
 
-                <ScrollArea className="h-[200px] rounded border p-4">
-                  {consoleLogs.map((log, index) => (
-                    <div
-                      key={index}
-                      className={`text-sm mb-2 ${
-                        log.type === "error" ? "text-[#ea384c]" :
-                        log.type === "success" ? "text-green-500" :
-                        "text-muted-foreground"
-                      }`}
-                    >
-                      [{log.timestamp}] {log.message}
-                    </div>
-                  ))}
-                </ScrollArea>
-              </div>
+              <ScrollArea className="h-[200px] rounded border p-4">
+                {consoleLogs.map((log, index) => (
+                  <div
+                    key={index}
+                    className={`text-sm mb-2 ${
+                      log.type === "error" ? "text-[#ea384c]" :
+                      log.type === "success" ? "text-green-500" :
+                      "text-muted-foreground"
+                    }`}
+                  >
+                    [{log.timestamp}] {log.message}
+                  </div>
+                ))}
+              </ScrollArea>
             </div>
 
             {report.length > 0 && (

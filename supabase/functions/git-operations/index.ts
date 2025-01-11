@@ -1,152 +1,218 @@
-import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1'
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { Octokit } from 'https://esm.sh/octokit'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
+console.log('Git Operations Function Started');
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
+    return new Response('ok', { headers: corsHeaders })
   }
 
   try {
-    console.log('Starting git operation...');
-    
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')
-    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
-    
-    if (!supabaseUrl || !supabaseServiceKey) {
-      console.error('Missing required environment variables')
-      throw new Error('Server configuration error')
-    }
+    const { type, sourceRepoId, targetRepoId, pushType } = await req.json();
+    console.log('Received operation:', { type, sourceRepoId, targetRepoId, pushType });
 
-    const supabase = createClient(supabaseUrl, supabaseServiceKey)
-
-    // Verify authentication
-    const authHeader = req.headers.get('Authorization')
-    if (!authHeader) {
-      console.error('No authorization header')
-      throw new Error('No authorization header')
-    }
-
-    const { data: { user }, error: authError } = await supabase.auth.getUser(
-      authHeader.replace('Bearer ', '')
+    const supabaseClient = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
     )
 
-    if (authError || !user) {
-      console.error('Auth error:', authError)
-      throw new Error('Invalid token')
-    }
-
-    console.log('User authenticated:', user.id)
-
-    // Verify GitHub token exists
-    const githubToken = Deno.env.get('GITHUB_PAT')
+    const githubToken = Deno.env.get('GITHUB_ACCESS_TOKEN');
     if (!githubToken) {
-      console.error('GitHub PAT not configured')
-      throw new Error('GitHub token not configured')
+      console.error('GitHub token not found');
+      throw new Error('GitHub token not configured');
     }
 
-    // Get request data
-    const { branch = 'main' } = await req.json()
-    const repoOwner = 'imedia765'
-    const repoName = 's-935078'
+    const octokit = new Octokit({
+      auth: githubToken
+    });
 
-    console.log('Verifying GitHub token and repository access...')
-
-    // Verify GitHub token is valid
-    const tokenCheckResponse = await fetch('https://api.github.com/user', {
-      headers: {
-        'Authorization': `token ${githubToken}`,
-        'Accept': 'application/vnd.github.v3+json',
-        'User-Agent': 'Supabase-Edge-Function'
-      }
-    })
-
-    if (!tokenCheckResponse.ok) {
-      const tokenError = await tokenCheckResponse.text()
-      console.error('GitHub token validation failed:', tokenError)
-      throw new Error('Invalid GitHub token')
-    }
-
-    console.log('GitHub token validated successfully')
-
-    // Log operation start
-    await supabase.from('git_operations_logs').insert({
-      operation_type: 'push',
-      status: 'started',
-      created_by: user.id,
-      message: `Starting push operation to ${repoOwner}/${repoName}:${branch}`
-    })
-
-    // Verify repository access
-    const repoCheckResponse = await fetch(
-      `https://api.github.com/repos/${repoOwner}/${repoName}`,
-      {
-        headers: {
-          'Authorization': `token ${githubToken}`,
-          'Accept': 'application/vnd.github.v3+json',
-          'User-Agent': 'Supabase-Edge-Function'
-        }
-      }
-    )
-
-    if (!repoCheckResponse.ok) {
-      const errorData = await repoCheckResponse.text()
-      console.error('Repository check failed:', errorData)
+    if (type === 'getLastCommit') {
+      console.log('Getting last commit for repo:', sourceRepoId);
       
-      await supabase.from('git_operations_logs').insert({
-        operation_type: 'push',
-        status: 'failed',
-        created_by: user.id,
-        message: `Repository access failed: ${errorData}`
-      })
+      const { data: repo, error: repoError } = await supabaseClient
+        .from('repositories')
+        .select('url')
+        .eq('id', sourceRepoId)
+        .single();
+
+      if (repoError) throw repoError;
+      if (!repo) throw new Error('Repository not found');
+
+      console.log('Found repository:', repo.url);
+
+      const [, owner, repoName] = repo.url.match(/github\.com\/([^\/]+)\/([^\/\.]+)/) || [];
+      if (!owner || !repoName) throw new Error('Invalid repository URL format');
+
+      console.log('Fetching commit for:', { owner, repoName });
       
-      throw new Error(`Repository access failed: ${errorData}`)
+      const { data: repoInfo } = await octokit.rest.repos.get({
+        owner,
+        repo: repoName
+      });
+
+      const { data: commit } = await octokit.rest.repos.getCommit({
+        owner,
+        repo: repoName,
+        ref: repoInfo.default_branch
+      });
+
+      console.log('Got commit:', commit.sha);
+
+      await supabaseClient
+        .from('repositories')
+        .update({ 
+          last_commit: commit.sha,
+          last_commit_date: commit.commit.author?.date,
+          last_sync: new Date().toISOString(),
+          status: 'synced'
+        })
+        .eq('id', sourceRepoId);
+
+      return new Response(
+        JSON.stringify({ success: true, commit }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
+    
+    if (type === 'push' && targetRepoId) {
+      console.log('Starting push operation');
+      
+      const { data: repos, error: reposError } = await supabaseClient
+        .from('repositories')
+        .select('*')
+        .in('id', [sourceRepoId, targetRepoId]);
 
-    console.log('Repository access verified')
+      if (reposError) throw reposError;
 
-    // Log success
-    await supabase.from('git_operations_logs').insert({
-      operation_type: 'push',
-      status: 'completed',
-      created_by: user.id,
-      message: `Successfully verified access to ${repoOwner}/${repoName}:${branch}`
-    })
+      const sourceRepo = repos.find(r => r.id === sourceRepoId);
+      const targetRepo = repos.find(r => r.id === targetRepoId);
+
+      if (!sourceRepo || !targetRepo) {
+        throw new Error('Source or target repository not found');
+      }
+
+      console.log('Processing repositories:', {
+        source: sourceRepo.url,
+        target: targetRepo.url
+      });
+
+      // Extract owner and repo name from URLs
+      const [, sourceOwner, sourceRepoName] = sourceRepo.url.match(/github\.com\/([^\/]+)\/([^\/\.]+)/) || [];
+      const [, targetOwner, targetRepoName] = targetRepo.url.match(/github\.com\/([^\/]+)\/([^\/\.]+)/) || [];
+
+      if (!sourceOwner || !sourceRepoName || !targetOwner || !targetRepoName) {
+        throw new Error('Invalid repository URL format');
+      }
+
+      // Get source repository default branch and latest commit
+      const { data: sourceRepoInfo } = await octokit.rest.repos.get({
+        owner: sourceOwner,
+        repo: sourceRepoName
+      });
+
+      console.log('Source repo info:', {
+        defaultBranch: sourceRepoInfo.default_branch
+      });
+
+      // Get the latest commit from source's default branch
+      const { data: sourceBranch } = await octokit.rest.repos.getBranch({
+        owner: sourceOwner,
+        repo: sourceRepoName,
+        branch: sourceRepoInfo.default_branch,
+      });
+
+      console.log('Source branch data:', {
+        name: sourceBranch.name,
+        commitSha: sourceBranch.commit.sha
+      });
+
+      // Get target repository default branch
+      const { data: targetRepoInfo } = await octokit.rest.repos.get({
+        owner: targetOwner,
+        repo: targetRepoName
+      });
+
+      console.log('Target repo info:', {
+        defaultBranch: targetRepoInfo.default_branch
+      });
+
+      try {
+        // Create merge using GitHub's API
+        const mergeResult = await octokit.rest.repos.merge({
+          owner: targetOwner,
+          repo: targetRepoName,
+          base: targetRepoInfo.default_branch,
+          head: sourceBranch.commit.sha,
+          commit_message: `Merge from ${sourceRepo.nickname || sourceRepo.url} using ${pushType} strategy`
+        });
+
+        console.log('Merge successful:', mergeResult.data);
+
+        // Update both repositories' status
+        const timestamp = new Date().toISOString();
+        
+        await supabaseClient
+          .from('repositories')
+          .update({ 
+            last_sync: timestamp,
+            status: 'synced',
+            last_commit: sourceBranch.commit.sha,
+            last_commit_date: new Date().toISOString()
+          })
+          .in('id', [sourceRepoId, targetRepoId]);
+
+        return new Response(
+          JSON.stringify({ 
+            success: true, 
+            message: `Push operation completed successfully`,
+            mergeResult: mergeResult.data
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      } catch (error) {
+        console.error('Error during merge operation:', error);
+        return new Response(
+          JSON.stringify({ 
+            success: false, 
+            error: error.message,
+            details: error.response?.data || error
+          }),
+          { 
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            status: 500
+          }
+        );
+      }
+    }
 
     return new Response(
-      JSON.stringify({ success: true }),
+      JSON.stringify({ 
+        success: true, 
+        message: `Git ${type} operation completed successfully`,
+        timestamp: new Date().toISOString()
+      }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    )
+    );
 
   } catch (error) {
-    console.error('Error in git-operations:', error)
-
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')
-    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
-    
-    if (supabaseUrl && supabaseServiceKey) {
-      const supabase = createClient(supabaseUrl, supabaseServiceKey)
-      
-      await supabase.from('git_operations_logs').insert({
-        operation_type: 'push',
-        status: 'failed',
-        message: error instanceof Error ? error.message : 'Unknown error'
-      })
-    }
-
+    console.error('Error in git-operations function:', error);
     return new Response(
-      JSON.stringify({
-        success: false,
-        error: error instanceof Error ? error.message : 'Unknown error'
+      JSON.stringify({ 
+        success: false, 
+        error: error.message,
+        details: error.response?.data || error
       }),
-      {
+      { 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 400
+        status: 500
       }
-    )
+    );
   }
-})
+});

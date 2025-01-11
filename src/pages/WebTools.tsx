@@ -55,27 +55,52 @@ export default function WebTools() {
 
   const fetchWithProxy = async (url: string) => {
     addConsoleLog(`Attempting to fetch ${url}`, "info");
-    try {
-      const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`;
-      addConsoleLog(`Using primary proxy: allorigins.win`, "info");
-      const response = await fetch(proxyUrl);
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+    
+    // List of CORS proxies to try
+    const proxies = [
+      {
+        name: "allorigins",
+        url: (targetUrl: string) => `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`,
+      },
+      {
+        name: "cors-anywhere",
+        url: (targetUrl: string) => `https://cors-anywhere.herokuapp.com/${targetUrl}`,
+      },
+      {
+        name: "corsproxy.io",
+        url: (targetUrl: string) => `https://corsproxy.io/?${encodeURIComponent(targetUrl)}`,
+      },
+      {
+        name: "cors.sh",
+        url: (targetUrl: string) => `https://cors.sh/${targetUrl}`,
       }
-      const text = await response.text();
-      addConsoleLog("Successfully fetched content", "success");
-      return text;
-    } catch (error) {
-      addConsoleLog(`Primary proxy failed, trying backup proxy`, "info");
-      const corsAnywhereUrl = `https://cors-anywhere.herokuapp.com/${url}`;
-      const response = await fetch(corsAnywhereUrl);
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+    ];
+
+    let lastError = null;
+
+    // Try each proxy in sequence
+    for (const proxy of proxies) {
+      try {
+        addConsoleLog(`Trying ${proxy.name} proxy...`, "info");
+        const proxyUrl = proxy.url(url);
+        const response = await fetch(proxyUrl);
+        
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        const text = await response.text();
+        addConsoleLog(`Successfully fetched content using ${proxy.name}`, "success");
+        return text;
+      } catch (error) {
+        addConsoleLog(`${proxy.name} proxy failed: ${error.message}`, "error");
+        lastError = error;
+        continue;
       }
-      const text = await response.text();
-      addConsoleLog("Successfully fetched content using backup proxy", "success");
-      return text;
     }
+
+    // If we get here, all proxies failed
+    throw new Error(`All CORS proxies failed. Last error: ${lastError?.message}`);
   };
 
   const analyzeWebsite = async () => {
@@ -294,13 +319,11 @@ export default function WebTools() {
                   }`}>
                     {status === "loading" && "Analysis in progress..."}
                     {status === "success" && "Analysis completed successfully"}
-                    {status === "error" && "Analysis failed"}
+                    {status === "error" && "Analysis failed - all CORS proxies failed to access the website. The website might be blocking access or temporarily unavailable."}
                   </AlertDescription>
                 </Alert>
               )}
 
-              <div className="bg-secondary/50 backdrop-blur-sm rounded-lg p-4">
-                <h3 className="text-lg font-semibold mb-2">Console Logs</h3>
                 <ScrollArea className="h-[200px] rounded border p-4">
                   {consoleLogs.map((log, index) => (
                     <div

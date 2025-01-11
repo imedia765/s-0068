@@ -283,13 +283,13 @@ export default function WebTools() {
     <div className="min-h-screen flex w-full">
       <AppSidebar />
       <div className="flex-1">
-        <div className="container mx-auto p-6 space-y-8">
+        <div className="container mx-auto p-6">
           <div className="flex justify-between items-center mb-8">
             <h1 className="text-3xl font-bold">Web Development Tools</h1>
             <SidebarTrigger />
           </div>
           
-          <div className="flex gap-4">
+          <div className="flex gap-4 mb-8">
             <Input
               type="url"
               placeholder="Enter website URL (e.g., https://example.com)"
@@ -302,7 +302,8 @@ export default function WebTools() {
             </Button>
           </div>
 
-          <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            {/* Left Column - Console and Status */}
             <div className="space-y-6">
               {status !== "idle" && (
                 <Alert
@@ -324,7 +325,7 @@ export default function WebTools() {
                 </Alert>
               )}
 
-              <ScrollArea className="h-[200px] rounded border p-4">
+              <ScrollArea className="h-[300px] rounded border p-4">
                 {consoleLogs.map((log, index) => (
                   <div
                     key={index}
@@ -340,9 +341,10 @@ export default function WebTools() {
               </ScrollArea>
             </div>
 
+            {/* Right Column - Analysis Results */}
             {report.length > 0 && (
-              <div className="space-y-6">
-                <div>
+              <div className="space-y-8">
+                <div className="bg-card rounded-lg p-6">
                   <h2 className="text-xl font-semibold mb-4">Website Analysis Report</h2>
                   <Table>
                     <TableHeader>
@@ -370,13 +372,19 @@ export default function WebTools() {
                   </Table>
                 </div>
 
-                <div className="grid grid-cols-1 gap-6">
-                  <WebMetricsD3 data={report} />
-                  <WebMetricsHighcharts data={report} />
-                  <WebMetricsP5 data={report} />
+                <div className="grid grid-cols-1 gap-8">
+                  <div className="bg-card rounded-lg p-6">
+                    <WebMetricsD3 data={report} />
+                  </div>
+                  <div className="bg-card rounded-lg p-6">
+                    <WebMetricsHighcharts data={report} />
+                  </div>
+                  <div className="bg-card rounded-lg p-6">
+                    <WebMetricsP5 data={report} />
+                  </div>
                 </div>
 
-                <div>
+                <div className="bg-card rounded-lg p-6">
                   <h2 className="text-xl font-semibold mb-4">Issues Found</h2>
                   <Table>
                     <TableHeader>

@@ -6,19 +6,35 @@ interface ConsoleOutputProps {
 }
 
 export const ConsoleOutput = ({ logs }: ConsoleOutputProps) => {
+  const formatLogEntry = (log: string) => {
+    // Check if log entry contains a timestamp
+    const timestampMatch = log.match(/\[\d{1,2}:\d{2}:\d{2}\s[AP]M\]/);
+    if (timestampMatch) {
+      const [timestamp] = timestampMatch;
+      const message = log.replace(timestamp, '').trim();
+      return (
+        <>
+          <span className="text-gray-500">{timestamp}</span>
+          <span className="ml-2">{message}</span>
+        </>
+      );
+    }
+    return log;
+  };
+
   return (
-    <Card className="w-full h-[300px]">
-      <CardHeader>
-        <CardTitle>Console Output</CardTitle>
+    <Card className="w-full">
+      <CardHeader className="pb-2">
+        <CardTitle className="text-lg">Console Output</CardTitle>
       </CardHeader>
       <CardContent>
-        <ScrollArea className="h-[200px] w-full rounded-md border p-4">
+        <ScrollArea className="h-[300px] w-full rounded-md border p-4">
           {logs.map((log, index) => (
             <div
               key={index}
-              className="text-sm font-mono whitespace-pre-wrap mb-1"
+              className="text-sm font-mono whitespace-pre-wrap mb-2 leading-relaxed"
             >
-              {log}
+              {formatLogEntry(log)}
             </div>
           ))}
         </ScrollArea>

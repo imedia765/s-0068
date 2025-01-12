@@ -116,15 +116,14 @@ const MemberProfileCard = ({ memberProfile }: MemberProfileCardProps) => {
                   userRole={userRole}
                 />
                 
-                {/* Family Members Section */}
                 <div className="space-y-2">
                   <div className="flex justify-between items-center">
                     <h3 className="text-dashboard-muted text-sm">Family Members</h3>
                     <Button
-                      variant="ghost"
+                      variant="outline"
                       size="sm"
-                      className="text-dashboard-accent2 hover:text-dashboard-accent2/80 hover:bg-dashboard-accent2/10"
                       onClick={() => setShowAddFamilyDialog(true)}
+                      className="bg-dashboard-accent1/10 hover:bg-dashboard-accent1/20 text-dashboard-accent1 border-dashboard-accent1/20 hover:border-dashboard-accent1/30"
                     >
                       <UserPlus className="w-4 h-4 mr-2" />
                       Add Family Member

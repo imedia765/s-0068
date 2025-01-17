@@ -17,7 +17,10 @@ const RoleBasedRenderer = ({
   requireAllRoles = false,
   fallback = null
 }: RoleBasedRendererProps) => {
-  const { hasRole, hasAnyRole } = useRoleAccess();
+  const { hasRole, hasAnyRole, roleLoading } = useRoleAccess();
+
+  // If loading, show nothing
+  if (roleLoading) return null;
 
   // If no roles specified, render children
   if (!allowedRoles.length) return <>{children}</>;

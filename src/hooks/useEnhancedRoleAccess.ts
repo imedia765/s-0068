@@ -1,9 +1,9 @@
+import { useCallback, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from "@/integrations/supabase/client";
 import { useRoleStore } from '@/store/roleStore';
 import { useToast } from "@/components/ui/use-toast";
 import { Database } from "@/integrations/supabase/types";
-import { useCallback } from 'react';
 
 type UserRole = Database['public']['Enums']['app_role'];
 

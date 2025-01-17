@@ -23,7 +23,8 @@ function App() {
     console.log('App render state:', appState);
   }, [appState]);
 
-  if (sessionLoading || rolesLoading) {
+  // Only show loading during initial session check
+  if (sessionLoading && !session) {
     return null;
   }
 

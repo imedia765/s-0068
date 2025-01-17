@@ -67,6 +67,7 @@ export const useEnhancedRoleAccess = () => {
       onError: (error: Error) => {
         console.error('Role loading error:', error);
         setError(error);
+        setIsLoading(false); // Ensure loading state is cleared on error
         toast({
           title: "Error loading roles",
           description: "There was a problem loading user roles. Please try again.",
@@ -75,6 +76,11 @@ export const useEnhancedRoleAccess = () => {
       }
     }
   });
+
+  // Update loading state in store
+  useEffect(() => {
+    setIsLoading(isLoading);
+  }, [isLoading, setIsLoading]);
 
   return {
     userRoles: data,

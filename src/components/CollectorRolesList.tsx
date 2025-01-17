@@ -144,37 +144,35 @@ const CollectorRolesList = () => {
   return (
     <div className="space-y-6 p-4">
       <div className="flex items-center justify-between mb-6">
-        <h2 className="text-2xl font-semibold text-dashboard-highlight">Active Collectors and Roles</h2>
-        <Badge variant="outline" className="text-dashboard-muted">
+        <h2 className="text-2xl font-semibold text-[#F2FCE2]">Active Collectors and Roles</h2>
+        <Badge variant="outline" className="text-[#D3E4FD]">
           {collectors?.length || 0} Collectors
         </Badge>
       </div>
 
       <div className="grid gap-6">
         {collectors?.map((collector) => (
-          <Card key={collector.member_number} className="p-6 bg-dashboard-card border-dashboard-cardBorder">
+          <Card key={collector.member_number} className="p-6 bg-dashboard-card border-dashboard-cardBorder hover:border-dashboard-accent1/30 transition-all duration-300">
             <div className="space-y-4">
-              {/* Header Section */}
               <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start">
                 <div className="space-y-1">
                   <div className="flex items-center gap-2">
                     <User className="h-5 w-5 text-dashboard-accent1" />
-                    <h3 className="text-lg font-medium text-dashboard-text">{collector.full_name}</h3>
+                    <h3 className="text-lg font-medium text-[#F3F3F3]">{collector.full_name}</h3>
                   </div>
-                  <p className="text-sm text-dashboard-muted">Member #: {collector.member_number}</p>
-                  <p className="text-xs text-dashboard-muted font-mono">ID: {collector.auth_user_id}</p>
+                  <p className="text-sm text-[#D6BCFA]">Member #: {collector.member_number}</p>
+                  <p className="text-xs text-[#E5DEFF] font-mono">ID: {collector.auth_user_id}</p>
                 </div>
               </div>
 
               <Separator className="bg-dashboard-cardBorder" />
 
               <Accordion type="single" collapsible className="w-full">
-                {/* Basic Role Information */}
                 <AccordionItem value="roles">
                   <AccordionTrigger className="hover:no-underline">
                     <div className="flex items-center gap-2">
-                      <Shield className="h-5 w-5 text-dashboard-accent2" />
-                      <span>Role Information</span>
+                      <Shield className="h-5 w-5 text-[#FDE1D3]" />
+                      <span className="text-[#FDE1D3]">Role Information</span>
                     </div>
                   </AccordionTrigger>
                   <AccordionContent>
@@ -186,11 +184,11 @@ const CollectorRolesList = () => {
                         >
                           <Badge 
                             variant="outline"
-                            className="bg-dashboard-accent1/10 text-dashboard-accent1 border-dashboard-accent1/20"
+                            className="bg-[#9B87F5]/10 text-[#D6BCFA] border-[#9B87F5]/20"
                           >
                             {roleDetail.role}
                           </Badge>
-                          <span className="text-xs text-dashboard-muted">
+                          <span className="text-xs text-[#F1F0FB]">
                             Added: {format(new Date(roleDetail.created_at), 'PPp')}
                           </span>
                         </div>
@@ -199,30 +197,29 @@ const CollectorRolesList = () => {
                   </AccordionContent>
                 </AccordionItem>
 
-                {/* useRoleAccess Status */}
                 <AccordionItem value="roleAccess">
                   <AccordionTrigger className="hover:no-underline">
                     <div className="flex items-center gap-2">
-                      <Activity className="h-5 w-5 text-dashboard-accent3" />
-                      <span>Role Access Status</span>
+                      <Activity className="h-5 w-5 text-[#F2FCE2]" />
+                      <span className="text-[#F2FCE2]">Role Access Status</span>
                     </div>
                   </AccordionTrigger>
                   <AccordionContent>
                     <div className="space-y-2">
                       <div className="grid grid-cols-2 gap-2 text-sm">
-                        <span className="text-dashboard-muted">Current Role:</span>
-                        <Badge variant="outline">{userRole}</Badge>
-                        <span className="text-dashboard-muted">Loading:</span>
+                        <span className="text-[#D3E4FD]">Current Role:</span>
+                        <Badge variant="outline" className="text-[#FEF7CD]">{userRole}</Badge>
+                        <span className="text-[#D3E4FD]">Loading:</span>
                         <Badge variant={roleLoading ? "destructive" : "secondary"}>
                           {roleLoading ? "Loading" : "Ready"}
                         </Badge>
-                        <span className="text-dashboard-muted">Permissions:</span>
+                        <span className="text-[#D3E4FD]">Permissions:</span>
                         <div className="space-y-1">
                           {Object.entries(permissions).map(([key, value]) => (
                             <Badge 
                               key={key}
                               variant={value ? "secondary" : "outline"}
-                              className="mr-1"
+                              className="mr-1 text-[#FEC6A1]"
                             >
                               {key}
                             </Badge>
@@ -233,22 +230,21 @@ const CollectorRolesList = () => {
                   </AccordionContent>
                 </AccordionItem>
 
-                {/* useEnhancedRoleAccess Status */}
                 <AccordionItem value="enhancedAccess">
                   <AccordionTrigger className="hover:no-underline">
                     <div className="flex items-center gap-2">
-                      <Database className="h-5 w-5 text-dashboard-accent4" />
-                      <span>Enhanced Role Status</span>
+                      <Database className="h-5 w-5 text-[#F2FCE2]" />
+                      <span className="text-[#F2FCE2]">Enhanced Role Status</span>
                     </div>
                   </AccordionTrigger>
                   <AccordionContent>
                     <div className="space-y-2">
                       <div className="grid grid-cols-2 gap-2 text-sm">
-                        <span className="text-dashboard-muted">Query Status:</span>
+                        <span className="text-[#D3E4FD]">Query Status:</span>
                         <Badge variant={enhancedLoading ? "destructive" : "secondary"}>
                           {enhancedLoading ? "Loading" : "Ready"}
                         </Badge>
-                        <span className="text-dashboard-muted">Enhanced Roles:</span>
+                        <span className="text-[#D3E4FD]">Enhanced Roles:</span>
                         <div className="space-y-1">
                           {enhancedRoles?.map((role) => (
                             <Badge 
@@ -265,18 +261,17 @@ const CollectorRolesList = () => {
                   </AccordionContent>
                 </AccordionItem>
 
-                {/* useRoleSync Status */}
                 <AccordionItem value="roleSync">
                   <AccordionTrigger className="hover:no-underline">
                     <div className="flex items-center gap-2">
-                      <RefreshCw className="h-5 w-5 text-dashboard-accent5" />
-                      <span>Role Sync Status</span>
+                      <RefreshCw className="h-5 w-5 text-[#F2FCE2]" />
+                      <span className="text-[#F2FCE2]">Role Sync Status</span>
                     </div>
                   </AccordionTrigger>
                   <AccordionContent>
                     <div className="space-y-2">
                       <div className="grid grid-cols-2 gap-2 text-sm">
-                        <span className="text-dashboard-muted">Sync Status:</span>
+                        <span className="text-[#D3E4FD]">Sync Status:</span>
                         <Badge variant={syncStatus ? "secondary" : "outline"}>
                           {syncStatus ? "Synced" : "Pending"}
                         </Badge>
@@ -285,22 +280,21 @@ const CollectorRolesList = () => {
                   </AccordionContent>
                 </AccordionItem>
 
-                {/* roleStore Status */}
                 <AccordionItem value="roleStore">
                   <AccordionTrigger className="hover:no-underline">
                     <div className="flex items-center gap-2">
-                      <HardDrive className="h-5 w-5 text-dashboard-accent6" />
-                      <span>Role Store Status</span>
+                      <HardDrive className="h-5 w-5 text-[#F2FCE2]" />
+                      <span className="text-[#F2FCE2]">Role Store Status</span>
                     </div>
                   </AccordionTrigger>
                   <AccordionContent>
                     <div className="space-y-2">
                       <div className="grid grid-cols-2 gap-2 text-sm">
-                        <span className="text-dashboard-muted">Store Status:</span>
+                        <span className="text-[#D3E4FD]">Store Status:</span>
                         <Badge variant={roleStore.isLoading ? "destructive" : "secondary"}>
                           {roleStore.isLoading ? "Loading" : "Ready"}
                         </Badge>
-                        <span className="text-dashboard-muted">Store Error:</span>
+                        <span className="text-[#D3E4FD]">Store Error:</span>
                         <Badge variant={roleStore.error ? "destructive" : "secondary"}>
                           {roleStore.error ? "Error" : "None"}
                         </Badge>

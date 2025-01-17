@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/hooks/use-toast";
+import { useToast } from "@/components/ui/use-toast";
 import { Database } from "@/integrations/supabase/types";
 
 type UserRole = Database['public']['Enums']['app_role'];
@@ -18,19 +18,19 @@ export const useEnhancedRoleAccess = () => {
           return null;
         }
 
-        const { data, error } = await supabase
+        const { data: roleData, error: roleError } = await supabase
           .from('user_roles')
           .select('role')
           .eq('user_id', session.user.id)
-          .single();
+          .maybeSingle();
 
-        if (error) {
-          console.error('Error fetching roles:', error);
-          throw error;
+        if (roleError) {
+          console.error('Error fetching roles:', roleError);
+          throw roleError;
         }
 
-        console.log('Fetched roles:', data);
-        return data?.role as UserRole | null;
+        console.log('Fetched roles:', roleData);
+        return roleData?.role as UserRole | null;
       } catch (err) {
         console.error('Role fetch error:', err);
         throw err;
@@ -40,14 +40,7 @@ export const useEnhancedRoleAccess = () => {
     staleTime: 1000 * 60 * 5, // Cache for 5 minutes
     refetchOnWindowFocus: false,
     meta: {
-      onError: (error: Error) => {
-        console.error('Role loading error:', error);
-        toast({
-          title: "Error loading roles",
-          description: "There was a problem loading user roles. Please try again.",
-          variant: "destructive",
-        });
-      }
+      errorMessage: 'Failed to load user roles'
     }
   });
 

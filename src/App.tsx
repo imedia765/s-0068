@@ -5,7 +5,7 @@ import ProtectedRoutes from "@/components/routing/ProtectedRoutes";
 import { useEnhancedRoleAccess } from "@/hooks/useEnhancedRoleAccess";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useToast } from "@/components/ui/use-toast";
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useCallback } from "react";
 import { useNavigate, useLocation, Routes, Route } from "react-router-dom";
 import Login from "@/pages/Login";
 
@@ -36,7 +36,7 @@ function AppContent() {
 
   console.log('App render state:', currentState);
 
-  useEffect(() => {
+  const handleSessionCheck = useCallback(() => {
     if (!sessionLoading) {
       console.log('Session check complete:', {
         hasSession: !!session,
@@ -53,6 +53,10 @@ function AppContent() {
       }
     }
   }, [session, sessionLoading, navigate, location.pathname]);
+
+  useEffect(() => {
+    handleSessionCheck();
+  }, [handleSessionCheck]);
 
   useEffect(() => {
     // Force role refresh when session changes

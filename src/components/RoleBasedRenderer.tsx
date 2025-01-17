@@ -33,7 +33,8 @@ const RoleBasedRenderer = ({
   console.log('RoleBasedRenderer access check:', {
     allowedRoles,
     requireAllRoles,
-    hasAccess
+    hasAccess,
+    roleLoading
   });
 
   return <>{hasAccess ? children : fallback}</>;

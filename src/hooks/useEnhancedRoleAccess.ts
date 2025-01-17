@@ -39,13 +39,16 @@ export const useEnhancedRoleAccess = () => {
     retry: 1,
     staleTime: 1000 * 60 * 5, // Cache for 5 minutes
     refetchOnWindowFocus: false,
-    onError: (error: Error) => {
-      console.error('Role loading error:', error);
-      toast({
-        title: "Error loading roles",
-        description: "There was a problem loading user roles. Please try again.",
-        variant: "destructive",
-      });
+    meta: {
+      errorMessage: 'Failed to load user roles',
+      onError: (error: Error) => {
+        console.error('Role loading error:', error);
+        toast({
+          title: "Error loading roles",
+          description: "There was a problem loading user roles. Please try again.",
+          variant: "destructive",
+        });
+      }
     }
   });
 

@@ -58,21 +58,28 @@ function AppContent() {
     handleSessionCheck();
   }, [handleSessionCheck]);
 
+  // Memoize the role error effect to prevent unnecessary re-renders
+  const handleRoleError = useCallback(() => {
+    if (rolesError) {
+      console.error('Role loading error:', rolesError);
+      toast({
+        title: "Error loading roles",
+        description: "There was a problem loading user roles. Please try again.",
+        variant: "destructive",
+      });
+    }
+  }, [rolesError, toast]);
+
+  useEffect(() => {
+    handleRoleError();
+  }, [handleRoleError]);
+
   useEffect(() => {
     // Force role refresh when session changes
     if (session) {
       queryClient.invalidateQueries({ queryKey: ['userRoles'] });
     }
   }, [session]);
-
-  if (rolesError) {
-    console.error('Role loading error:', rolesError);
-    toast({
-      title: "Error loading roles",
-      description: "There was a problem loading user roles. Please try again.",
-      variant: "destructive",
-    });
-  }
 
   // Show loading state only during initial session check or when loading roles for authenticated users
   const showLoading = (sessionLoading || (session && rolesLoading)) && location.pathname !== '/login';

@@ -8,7 +8,7 @@ import Index from '@/pages/Index';
 import ProtectedRoutes from '@/components/routing/ProtectedRoutes';
 
 function App() {
-  const { session, isLoading: sessionLoading } = useAuthSession();
+  const { session, loading: sessionLoading } = useAuthSession();
   const { isLoading: rolesLoading } = useEnhancedRoleAccess();
 
   const appState = useMemo(() => ({

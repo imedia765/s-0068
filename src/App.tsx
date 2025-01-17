@@ -5,7 +5,7 @@ import ProtectedRoutes from "@/components/routing/ProtectedRoutes";
 import { useEnhancedRoleAccess } from "@/hooks/useEnhancedRoleAccess";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useToast } from "@/components/ui/use-toast";
-import { useEffect, useMemo, useCallback } from "react";
+import { useEffect } from "react";
 import { useNavigate, useLocation, Routes, Route } from "react-router-dom";
 import Login from "@/pages/Login";
 
@@ -25,18 +25,15 @@ function AppContent() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Memoize the current state to prevent unnecessary re-renders
-  const currentState = useMemo(() => ({
-    sessionLoading,
-    rolesLoading,
+  console.log('App render state:', { 
+    sessionLoading, 
+    rolesLoading, 
     hasSession: !!session,
     currentPath: location.pathname,
     timestamp: new Date().toISOString()
-  }), [sessionLoading, rolesLoading, session, location.pathname]);
+  });
 
-  console.log('App render state:', currentState);
-
-  const handleSessionCheck = useCallback(() => {
+  useEffect(() => {
     if (!sessionLoading) {
       console.log('Session check complete:', {
         hasSession: !!session,
@@ -55,31 +52,20 @@ function AppContent() {
   }, [session, sessionLoading, navigate, location.pathname]);
 
   useEffect(() => {
-    handleSessionCheck();
-  }, [handleSessionCheck]);
-
-  // Memoize the role error effect to prevent unnecessary re-renders
-  const handleRoleError = useCallback(() => {
-    if (rolesError) {
-      console.error('Role loading error:', rolesError);
-      toast({
-        title: "Error loading roles",
-        description: "There was a problem loading user roles. Please try again.",
-        variant: "destructive",
-      });
-    }
-  }, [rolesError, toast]);
-
-  useEffect(() => {
-    handleRoleError();
-  }, [handleRoleError]);
-
-  useEffect(() => {
     // Force role refresh when session changes
     if (session) {
       queryClient.invalidateQueries({ queryKey: ['userRoles'] });
     }
   }, [session]);
+
+  if (rolesError) {
+    console.error('Role loading error:', rolesError);
+    toast({
+      title: "Error loading roles",
+      description: "There was a problem loading user roles. Please try again.",
+      variant: "destructive",
+    });
+  }
 
   // Show loading state only during initial session check or when loading roles for authenticated users
   const showLoading = (sessionLoading || (session && rolesLoading)) && location.pathname !== '/login';

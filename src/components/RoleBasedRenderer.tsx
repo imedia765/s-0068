@@ -17,25 +17,13 @@ const RoleBasedRenderer = ({
   requireAllRoles = false,
   fallback = null
 }: RoleBasedRendererProps) => {
-  const { hasRole, hasAnyRole, roleLoading } = useRoleAccess();
+  const { hasRole, hasAnyRole } = useRoleAccess();
 
-  // If loading, show nothing
-  if (roleLoading) return null;
-
-  // If no roles specified, render children
   if (!allowedRoles.length) return <>{children}</>;
 
-  // Check role access based on requirements
   const hasAccess = requireAllRoles
     ? allowedRoles.every(role => hasRole(role))
     : hasAnyRole(allowedRoles);
-
-  console.log('RoleBasedRenderer access check:', {
-    allowedRoles,
-    requireAllRoles,
-    hasAccess,
-    roleLoading
-  });
 
   return <>{hasAccess ? children : fallback}</>;
 };

@@ -12,7 +12,6 @@ export const useEnhancedRoleAccess = () => {
   const setUserRole = useRoleStore((state) => state.setUserRole);
   const setIsLoading = useRoleStore((state) => state.setIsLoading);
   const setError = useRoleStore((state) => state.setError);
-  const setPermissions = useRoleStore((state) => state.setPermissions);
 
   const { data, isLoading, error } = useQuery({
     queryKey: ['userRoles'],
@@ -35,24 +34,24 @@ export const useEnhancedRoleAccess = () => {
         const { data: roles, error: rolesError } = await supabase
           .from('user_roles')
           .select('role')
-          .eq('user_id', session.user.id);
+          .eq('user_id', session.user.id)
+          .single();
 
         if (rolesError) {
           console.error('Error fetching roles:', rolesError);
-          toast({
-            title: "Error fetching roles",
-            description: "There was a problem loading your access permissions.",
-            variant: "destructive",
-          });
+          if (rolesError.code !== 'PGRST116') { // Ignore "no rows returned" error
+            toast({
+              title: "Error fetching roles",
+              description: "There was a problem loading your access permissions.",
+              variant: "destructive",
+            });
+          }
           throw rolesError;
         }
 
-        const userRoles = roles?.map(r => r.role as UserRole) || ['member'];
+        const userRoles = roles ? [roles.role as UserRole] : ['member' as UserRole];
         console.log('Fetched roles:', userRoles);
 
-        // Force a new reference for the array to ensure React detects the change
-        const userRolesCopy = [...userRoles];
-        
         // Set primary role (admin > collector > member)
         const primaryRole = userRoles.includes('admin' as UserRole) 
           ? 'admin' as UserRole 
@@ -60,11 +59,11 @@ export const useEnhancedRoleAccess = () => {
             ? 'collector' as UserRole
             : 'member' as UserRole;
 
-        // Update state with new references to trigger re-renders
-        setUserRoles(userRolesCopy);
+        // Update state in a single batch
+        setUserRoles(userRoles);
         setUserRole(primaryRole);
         
-        return userRolesCopy;
+        return userRoles;
       } catch (error: any) {
         console.error('Role fetch error:', error);
         setError(error);
@@ -74,7 +73,7 @@ export const useEnhancedRoleAccess = () => {
       }
     },
     staleTime: 1000 * 60 * 5, // Cache for 5 minutes
-    refetchOnWindowFocus: true,
+    refetchOnWindowFocus: false,
     retry: 1
   });
 

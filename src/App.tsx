@@ -5,7 +5,7 @@ import ProtectedRoutes from "@/components/routing/ProtectedRoutes";
 import { useEnhancedRoleAccess } from "@/hooks/useEnhancedRoleAccess";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useToast } from "@/components/ui/use-toast";
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import { useNavigate, useLocation, Routes, Route } from "react-router-dom";
 import Login from "@/pages/Login";
 
@@ -25,13 +25,16 @@ function AppContent() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  console.log('App render state:', { 
-    sessionLoading, 
-    rolesLoading, 
+  // Memoize the current state to prevent unnecessary re-renders
+  const currentState = useMemo(() => ({
+    sessionLoading,
+    rolesLoading,
     hasSession: !!session,
     currentPath: location.pathname,
     timestamp: new Date().toISOString()
-  });
+  }), [sessionLoading, rolesLoading, session, location.pathname]);
+
+  console.log('App render state:', currentState);
 
   useEffect(() => {
     if (!sessionLoading) {

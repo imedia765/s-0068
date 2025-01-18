@@ -166,14 +166,14 @@ export const CollectorRolesList = () => {
       if (action === 'add') {
         const { error } = await supabase
           .from('user_roles')
-          .insert({ user_id: userId, role: role as UserRole });
+          .insert({ user_id: userId, role });
         if (error) throw error;
       } else {
         const { error } = await supabase
           .from('user_roles')
           .delete()
           .eq('user_id', userId)
-          .eq('role', role as UserRole);
+          .eq('role', role);
         if (error) throw error;
       }
       

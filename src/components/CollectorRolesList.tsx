@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from "@/integrations/supabase/client";
 import { Loader2, AlertCircle, User, Shield, RefreshCw } from "lucide-react";
 import { format } from 'date-fns';
@@ -60,6 +60,7 @@ interface CollectorInfo {
 
 export const CollectorRolesList = () => {
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const { userRole, userRoles, roleLoading, error: roleError, permissions } = useRoleAccess();
   const { userRoles: enhancedRoles, isLoading: enhancedLoading } = useEnhancedRoleAccess();
   const { syncStatus, syncRoles } = useRoleSync();
@@ -177,11 +178,16 @@ export const CollectorRolesList = () => {
         if (error) throw error;
       }
       
+      // Invalidate and refetch queries
+      await queryClient.invalidateQueries({ queryKey: ['collectors-roles'] });
+      await queryClient.invalidateQueries({ queryKey: ['userRoles'] });
+      
       toast({
         title: "Role updated",
         description: `Successfully ${action}ed ${role} role`,
       });
     } catch (error) {
+      console.error('Role update error:', error);
       toast({
         title: "Error updating role",
         description: error instanceof Error ? error.message : "An error occurred",

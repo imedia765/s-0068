@@ -589,7 +589,9 @@ export type Database = {
           id: string
           new_value: Json | null
           old_value: Json | null
+          role: Database["public"]["Enums"]["app_role"] | null
           role_id: string | null
+          user_id: string | null
         }
         Insert: {
           change_type?: string | null
@@ -598,7 +600,9 @@ export type Database = {
           id?: string
           new_value?: Json | null
           old_value?: Json | null
+          role?: Database["public"]["Enums"]["app_role"] | null
           role_id?: string | null
+          user_id?: string | null
         }
         Update: {
           change_type?: string | null
@@ -607,17 +611,11 @@ export type Database = {
           id?: string
           new_value?: Json | null
           old_value?: Json | null
+          role?: Database["public"]["Enums"]["app_role"] | null
           role_id?: string | null
+          user_id?: string | null
         }
-        Relationships: [
-          {
-            foreignKeyName: "role_history_role_id_fkey"
-            columns: ["role_id"]
-            isOneToOne: false
-            referencedRelation: "user_roles"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       sync_status: {
         Row: {

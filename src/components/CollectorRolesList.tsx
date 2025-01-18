@@ -97,7 +97,6 @@ export const CollectorRolesList = () => {
 
             if (rolesError) throw rolesError;
 
-            // Validate and type-cast roles
             const typedRoles = (roles || [])
               .map(r => r.role)
               .filter(isValidRole);
@@ -178,7 +177,6 @@ export const CollectorRolesList = () => {
         if (error) throw error;
       }
       
-      // Invalidate and refetch queries
       await queryClient.invalidateQueries({ queryKey: ['collectors-roles'] });
       await queryClient.invalidateQueries({ queryKey: ['userRoles'] });
       

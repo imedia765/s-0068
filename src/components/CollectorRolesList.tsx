@@ -156,7 +156,7 @@ export const CollectorRolesList = () => {
     if (!isValidRole(role)) {
       toast({
         title: "Invalid role",
-        description: "The specified role is not valid",
+        description: `The role "${role}" is not a valid role`,
         variant: "destructive",
       });
       return;

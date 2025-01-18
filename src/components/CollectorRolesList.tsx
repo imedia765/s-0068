@@ -1,117 +1,145 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2, AlertCircle, User, Shield, Clock, Activity, Database, RefreshCw, HardDrive } from "lucide-react";
+import { Loader2, AlertCircle, User, Shield, RefreshCw } from "lucide-react";
 import { format } from 'date-fns';
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
-import { useToast } from "@/hooks/use-toast";
-import { useRoleAccess } from "@/hooks/useRoleAccess";
-import { useEnhancedRoleAccess } from "@/hooks/useEnhancedRoleAccess";
-import { useRoleSync } from "@/hooks/useRoleSync";
-import { useRoleStore } from "@/store/roleStore";
+import { Button } from "@/components/ui/button";
 import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "@/components/ui/accordion";
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { useToast } from "@/hooks/use-toast";
+import { useRoleAccess } from '@/hooks/useRoleAccess';
+import { useEnhancedRoleAccess } from '@/hooks/useEnhancedRoleAccess';
+import { useRoleSync } from '@/hooks/useRoleSync';
+import { RoleAssignment } from './collectors/roles/RoleAssignment';
+import { PermissionsDisplay } from './collectors/roles/PermissionsDisplay';
+import { Database } from "@/integrations/supabase/types";
+
+type UserRole = Database['public']['Enums']['app_role'];
+
+const isValidRole = (role: string): role is UserRole => {
+  return ['admin', 'collector', 'member'].includes(role);
+};
+
+interface SyncStatus {
+  id: string;
+  user_id: string;
+  sync_started_at: string;
+  last_attempted_sync_at: string;
+  status: string;
+  error_message: string;
+  store_status: string;
+  store_error: string;
+}
 
 interface CollectorInfo {
   full_name: string;
   member_number: string;
-  roles: string[];
+  roles: UserRole[];
   auth_user_id: string;
   role_details: {
-    role: string;
+    role: UserRole;
     created_at: string;
   }[];
+  email: string | null;
+  phone: string | null;
+  prefix: string | null;
+  number: string | null;
+  enhanced_roles: {
+    role_name: string;
+    is_active: boolean;
+  }[];
+  sync_status?: SyncStatus;
 }
 
-const CollectorRolesList = () => {
+export const CollectorRolesList = () => {
   const { toast } = useToast();
   const { userRole, userRoles, roleLoading, error: roleError, permissions } = useRoleAccess();
   const { userRoles: enhancedRoles, isLoading: enhancedLoading } = useEnhancedRoleAccess();
   const { syncStatus, syncRoles } = useRoleSync();
-  const roleStore = useRoleStore();
 
-  const { data: collectors, isLoading, error } = useQuery({
+  const { data: collectors = [], isLoading, error } = useQuery({
     queryKey: ['collectors-roles'],
     queryFn: async () => {
       console.log('Fetching collectors and roles data...');
       
       try {
-        // First get active collectors
         const { data: activeCollectors, error: collectorsError } = await supabase
           .from('members_collectors')
-          .select('member_number, name')
+          .select('member_number, name, email, phone, prefix, number')
           .eq('active', true);
 
-        if (collectorsError) {
-          console.error('Error fetching collectors:', collectorsError);
-          throw collectorsError;
-        }
+        if (collectorsError) throw collectorsError;
 
-        console.log('Active collectors:', activeCollectors);
-
-        // Then get member details and roles for each collector
         const collectorsWithRoles = await Promise.all(
-          activeCollectors.map(async (collector) => {
-            try {
-              // Get member data
-              const { data: memberData, error: memberError } = await supabase
-                .from('members')
-                .select('full_name, member_number, auth_user_id')
-                .eq('member_number', collector.member_number)
-                .single();
+          (activeCollectors || []).map(async (collector) => {
+            const { data: memberData, error: memberError } = await supabase
+              .from('members')
+              .select('full_name, member_number, auth_user_id')
+              .eq('member_number', collector.member_number)
+              .maybeSingle();
 
-              if (memberError) {
-                console.error('Error fetching member data:', memberError);
-                throw memberError;
-              }
+            if (memberError) throw memberError;
+            if (!memberData) return null;
 
-              console.log('Member data:', memberData);
+            const { data: roles, error: rolesError } = await supabase
+              .from('user_roles')
+              .select('role, created_at')
+              .eq('user_id', memberData.auth_user_id)
+              .order('created_at', { ascending: true });
 
-              // Get user roles with creation timestamp
-              const { data: roles, error: rolesError } = await supabase
-                .from('user_roles')
-                .select('role, created_at')
-                .eq('user_id', memberData.auth_user_id)
-                .order('created_at', { ascending: true });
+            if (rolesError) throw rolesError;
 
-              if (rolesError) {
-                console.error('Error fetching roles:', rolesError);
-                throw rolesError;
-              }
+            // Validate and type-cast roles
+            const typedRoles = (roles || [])
+              .map(r => r.role)
+              .filter(isValidRole);
 
-              console.log('User roles:', roles);
+            const typedRoleDetails = (roles || [])
+              .filter(r => isValidRole(r.role))
+              .map(r => ({
+                role: r.role as UserRole,
+                created_at: r.created_at
+              }));
 
-              return {
-                full_name: memberData.full_name,
-                member_number: memberData.member_number,
-                auth_user_id: memberData.auth_user_id,
-                roles: roles?.map(r => r.role) || [],
-                role_details: roles?.map(r => ({
-                  role: r.role,
-                  created_at: r.created_at
-                })) || []
-              };
-            } catch (err) {
-              console.error('Error processing collector:', collector.member_number, err);
-              toast({
-                title: "Error loading collector data",
-                description: `Could not load data for collector ${collector.member_number}`,
-                variant: "destructive",
-              });
-              return null;
-            }
+            const { data: enhancedRoles, error: enhancedError } = await supabase
+              .from('enhanced_roles')
+              .select('role_name, is_active')
+              .eq('user_id', memberData.auth_user_id);
+
+            if (enhancedError) throw enhancedError;
+
+            const { data: syncStatus, error: syncError } = await supabase
+              .from('sync_status')
+              .select('*')
+              .eq('user_id', memberData.auth_user_id)
+              .maybeSingle();
+
+            if (syncError) throw syncError;
+
+            const collectorInfo: CollectorInfo = {
+              ...memberData,
+              roles: typedRoles,
+              role_details: typedRoleDetails,
+              email: collector.email,
+              phone: collector.phone,
+              prefix: collector.prefix,
+              number: collector.number,
+              enhanced_roles: enhancedRoles || [],
+              sync_status: syncStatus || undefined
+            };
+
+            return collectorInfo;
           })
         );
 
-        // Filter out any null results from errors
-        const validCollectors = collectorsWithRoles.filter(c => c !== null);
-        console.log('Final collectors data:', validCollectors);
-        return validCollectors;
+        return collectorsWithRoles.filter((c): c is CollectorInfo => c !== null);
       } catch (err) {
         console.error('Error in collector roles query:', err);
         toast({
@@ -123,6 +151,60 @@ const CollectorRolesList = () => {
       }
     }
   });
+
+  const handleRoleChange = async (userId: string, role: string, action: 'add' | 'remove') => {
+    if (!isValidRole(role)) {
+      toast({
+        title: "Invalid role",
+        description: "The specified role is not valid",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      if (action === 'add') {
+        const { error } = await supabase
+          .from('user_roles')
+          .insert({ user_id: userId, role });
+        if (error) throw error;
+      } else {
+        const { error } = await supabase
+          .from('user_roles')
+          .delete()
+          .eq('user_id', userId)
+          .eq('role', role);
+        if (error) throw error;
+      }
+      
+      toast({
+        title: "Role updated",
+        description: `Successfully ${action}ed ${role} role`,
+      });
+    } catch (error) {
+      toast({
+        title: "Error updating role",
+        description: error instanceof Error ? error.message : "An error occurred",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleSync = async (userId: string) => {
+    try {
+      await syncRoles([userId]);
+      toast({
+        title: "Sync initiated",
+        description: "Role synchronization process has started",
+      });
+    } catch (error) {
+      toast({
+        title: "Sync failed",
+        description: error instanceof Error ? error.message : "An error occurred during sync",
+        variant: "destructive",
+      });
+    }
+  };
 
   if (error || roleError) {
     return (
@@ -150,163 +232,108 @@ const CollectorRolesList = () => {
         </Badge>
       </div>
 
-      <div className="grid gap-6">
-        {collectors?.map((collector) => (
-          <Card key={collector.member_number} className="p-6 bg-dashboard-card border-dashboard-cardBorder hover:border-dashboard-accent1/30 transition-all duration-300">
-            <div className="space-y-4">
-              <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start">
-                <div className="space-y-1">
+      <Card className="p-6 bg-dashboard-card border-dashboard-cardBorder">
+        <Table>
+          <TableHeader>
+            <TableRow className="border-dashboard-cardBorder hover:bg-dashboard-card/50">
+              <TableHead className="text-[#F2FCE2]">Collector</TableHead>
+              <TableHead className="text-[#F2FCE2]">Member #</TableHead>
+              <TableHead className="text-[#F2FCE2]">Contact Info</TableHead>
+              <TableHead className="text-[#F2FCE2]">Roles & Access</TableHead>
+              <TableHead className="text-[#F2FCE2]">Role History</TableHead>
+              <TableHead className="text-[#F2FCE2]">Enhanced Role Status</TableHead>
+              <TableHead className="text-[#F2FCE2]">Role Store Status</TableHead>
+              <TableHead className="text-[#F2FCE2]">Sync Status</TableHead>
+              <TableHead className="text-[#F2FCE2]">Permissions</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {collectors.map((collector) => (
+              <TableRow 
+                key={collector.member_number}
+                className="border-dashboard-cardBorder hover:bg-dashboard-card/50"
+              >
+                <TableCell className="font-medium text-[#F3F3F3]">
                   <div className="flex items-center gap-2">
-                    <User className="h-5 w-5 text-dashboard-accent1" />
-                    <h3 className="text-lg font-medium text-[#F3F3F3]">{collector.full_name}</h3>
+                    <User className="h-4 w-4 text-dashboard-accent1" />
+                    {collector.full_name}
                   </div>
-                  <p className="text-sm text-[#D6BCFA]">Member #: {collector.member_number}</p>
-                  <p className="text-xs text-[#E5DEFF] font-mono">ID: {collector.auth_user_id}</p>
-                </div>
-              </div>
-
-              <Separator className="bg-dashboard-cardBorder" />
-
-              <Accordion type="single" collapsible className="w-full">
-                <AccordionItem value="roles">
-                  <AccordionTrigger className="hover:no-underline">
-                    <div className="flex items-center gap-2">
-                      <Shield className="h-5 w-5 text-[#FDE1D3]" />
-                      <span className="text-[#FDE1D3]">Role Information</span>
-                    </div>
-                  </AccordionTrigger>
-                  <AccordionContent>
-                    <div className="space-y-2">
-                      {collector.role_details.map((roleDetail, index) => (
-                        <div 
-                          key={`${roleDetail.role}-${index}`}
-                          className="flex items-center justify-between bg-dashboard-card/50 rounded-md p-2"
-                        >
-                          <Badge 
-                            variant="outline"
-                            className="bg-[#9B87F5]/10 text-[#D6BCFA] border-[#9B87F5]/20"
-                          >
-                            {roleDetail.role}
-                          </Badge>
-                          <span className="text-xs text-[#F1F0FB]">
-                            Added: {format(new Date(roleDetail.created_at), 'PPp')}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  </AccordionContent>
-                </AccordionItem>
-
-                <AccordionItem value="roleAccess">
-                  <AccordionTrigger className="hover:no-underline">
-                    <div className="flex items-center gap-2">
-                      <Activity className="h-5 w-5 text-[#F2FCE2]" />
-                      <span className="text-[#F2FCE2]">Role Access Status</span>
-                    </div>
-                  </AccordionTrigger>
-                  <AccordionContent>
-                    <div className="space-y-2">
-                      <div className="grid grid-cols-2 gap-2 text-sm">
-                        <span className="text-[#D3E4FD]">Current Role:</span>
-                        <Badge variant="outline" className="text-[#FEF7CD]">{userRole}</Badge>
-                        <span className="text-[#D3E4FD]">Loading:</span>
-                        <Badge variant={roleLoading ? "destructive" : "secondary"}>
-                          {roleLoading ? "Loading" : "Ready"}
-                        </Badge>
-                        <span className="text-[#D3E4FD]">Permissions:</span>
-                        <div className="space-y-1">
-                          {Object.entries(permissions).map(([key, value]) => (
-                            <Badge 
-                              key={key}
-                              variant={value ? "secondary" : "outline"}
-                              className="mr-1 text-[#FEC6A1]"
-                            >
-                              {key}
-                            </Badge>
-                          ))}
-                        </div>
+                </TableCell>
+                <TableCell className="text-[#D6BCFA]">
+                  <div className="flex flex-col">
+                    <span>{collector.member_number}</span>
+                    <span className="text-sm text-[#9B87F5]">{collector.prefix}-{collector.number}</span>
+                  </div>
+                </TableCell>
+                <TableCell className="text-[#F3F3F3]">
+                  <div className="flex flex-col">
+                    <span>{collector.email}</span>
+                    <span>{collector.phone}</span>
+                  </div>
+                </TableCell>
+                <TableCell>
+                  <RoleAssignment
+                    currentRoles={collector.roles}
+                    onRoleChange={(role, action) => handleRoleChange(collector.auth_user_id, role, action)}
+                    isLoading={roleLoading}
+                  />
+                </TableCell>
+                <TableCell className="text-[#F1F0FB]">
+                  <div className="flex flex-col gap-1">
+                    {collector.role_details.map((detail, idx) => (
+                      <div key={idx} className="text-sm flex items-center gap-2">
+                        <Shield className="h-3 w-3" />
+                        {detail.role}: {format(new Date(detail.created_at), 'PPp')}
                       </div>
+                    ))}
+                  </div>
+                </TableCell>
+                <TableCell>
+                  <div className="space-y-1">
+                    {collector.enhanced_roles.map((role, idx) => (
+                      <Badge 
+                        key={idx}
+                        variant={role.is_active ? "default" : "secondary"}
+                        className="mr-1"
+                      >
+                        {role.role_name}
+                      </Badge>
+                    ))}
+                  </div>
+                </TableCell>
+                <TableCell>
+                  <Badge variant={collector.sync_status?.store_status === 'ready' ? 'default' : 'secondary'}>
+                    {collector.sync_status?.store_status || 'N/A'}
+                  </Badge>
+                  {collector.sync_status?.store_error && (
+                    <div className="text-sm text-red-500 mt-1">
+                      {collector.sync_status.store_error}
                     </div>
-                  </AccordionContent>
-                </AccordionItem>
-
-                <AccordionItem value="enhancedAccess">
-                  <AccordionTrigger className="hover:no-underline">
-                    <div className="flex items-center gap-2">
-                      <Database className="h-5 w-5 text-[#F2FCE2]" />
-                      <span className="text-[#F2FCE2]">Enhanced Role Status</span>
-                    </div>
-                  </AccordionTrigger>
-                  <AccordionContent>
-                    <div className="space-y-2">
-                      <div className="grid grid-cols-2 gap-2 text-sm">
-                        <span className="text-[#D3E4FD]">Query Status:</span>
-                        <Badge variant={enhancedLoading ? "destructive" : "secondary"}>
-                          {enhancedLoading ? "Loading" : "Ready"}
-                        </Badge>
-                        <span className="text-[#D3E4FD]">Enhanced Roles:</span>
-                        <div className="space-y-1">
-                          {enhancedRoles?.map((role) => (
-                            <Badge 
-                              key={role}
-                              variant="outline"
-                              className="mr-1"
-                            >
-                              {role}
-                            </Badge>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-                  </AccordionContent>
-                </AccordionItem>
-
-                <AccordionItem value="roleSync">
-                  <AccordionTrigger className="hover:no-underline">
-                    <div className="flex items-center gap-2">
-                      <RefreshCw className="h-5 w-5 text-[#F2FCE2]" />
-                      <span className="text-[#F2FCE2]">Role Sync Status</span>
-                    </div>
-                  </AccordionTrigger>
-                  <AccordionContent>
-                    <div className="space-y-2">
-                      <div className="grid grid-cols-2 gap-2 text-sm">
-                        <span className="text-[#D3E4FD]">Sync Status:</span>
-                        <Badge variant={syncStatus ? "secondary" : "outline"}>
-                          {syncStatus ? "Synced" : "Pending"}
-                        </Badge>
-                      </div>
-                    </div>
-                  </AccordionContent>
-                </AccordionItem>
-
-                <AccordionItem value="roleStore">
-                  <AccordionTrigger className="hover:no-underline">
-                    <div className="flex items-center gap-2">
-                      <HardDrive className="h-5 w-5 text-[#F2FCE2]" />
-                      <span className="text-[#F2FCE2]">Role Store Status</span>
-                    </div>
-                  </AccordionTrigger>
-                  <AccordionContent>
-                    <div className="space-y-2">
-                      <div className="grid grid-cols-2 gap-2 text-sm">
-                        <span className="text-[#D3E4FD]">Store Status:</span>
-                        <Badge variant={roleStore.isLoading ? "destructive" : "secondary"}>
-                          {roleStore.isLoading ? "Loading" : "Ready"}
-                        </Badge>
-                        <span className="text-[#D3E4FD]">Store Error:</span>
-                        <Badge variant={roleStore.error ? "destructive" : "secondary"}>
-                          {roleStore.error ? "Error" : "None"}
-                        </Badge>
-                      </div>
-                    </div>
-                  </AccordionContent>
-                </AccordionItem>
-              </Accordion>
-            </div>
-          </Card>
-        ))}
-      </div>
+                  )}
+                </TableCell>
+                <TableCell>
+                  <div className="flex items-center gap-2">
+                    <Badge variant={collector.sync_status?.status === 'completed' ? 'default' : 'secondary'}>
+                      {collector.sync_status?.status || 'pending'}
+                    </Badge>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => handleSync(collector.auth_user_id)}
+                      className="ml-2"
+                    >
+                      <RefreshCw className="h-3 w-3" />
+                    </Button>
+                  </div>
+                </TableCell>
+                <TableCell>
+                  <PermissionsDisplay permissions={permissions} />
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </Card>
     </div>
   );
 };
